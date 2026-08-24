@@ -106,7 +106,8 @@ function insightsModal(data) {
   const statGrid = el('div', { class: 'stat-grid', style: 'margin-bottom:16px' },
     stat('Labour % of revenue', labour.revenue > 0 ? `${Math.round(labour.labourPct * 100)}%` : '—', labour.labourPct > 0.3 ? 'neg' : ''),
     stat('Wages owed', money(labour.wagesOwed), labour.wagesOwed > 0 ? 'neg' : ''),
-    stat('Avg $ per visit', ops.visitCount ? money(ops.avgPerVisit) : '—', ''),
+    stat(ops.avgPerVisitBasis === 'billed' ? 'Avg $ / billed visit' : 'Typical visit price',
+      ops.avgPerVisit > 0 ? money(ops.avgPerVisit) : '—', ''),
     stat('Quote win rate', ops.winRate === null ? '—' : `${Math.round(ops.winRate * 100)}%`, ''));
 
   const pnlTable = el('table', { class: 'stmt-table' },
@@ -162,8 +163,11 @@ function hiringModal(data) {
       el('span', { class: 'a-icon' }, hp.avgNet > 0 && hp.affordable >= 1 ? '✅' : '⚠️'),
       el('span', {}, verdictText)));
     if (hp.breakEvenVisitsPerWeek !== null) {
+      const basisText = hp.avgPerVisitBasis === 'billed'
+        ? `at your average of ${money(hp.avgPerVisit)} billed per visit`
+        : `at your typical per-visit price of ${money(hp.avgPerVisit)}`;
       out.append(el('div', { class: 'row-sub', style: 'margin-top:8px' },
-        `Break-even: at your average of ${money(hp.avgPerVisit)} collected per visit, a helper pays for themselves if they help complete about ${hp.breakEvenVisitsPerWeek} extra visit${hp.breakEvenVisitsPerWeek > 1 ? 's' : ''} a week.`));
+        `Break-even: ${basisText}, a helper pays for themselves if they help complete about ${hp.breakEvenVisitsPerWeek} extra visit${hp.breakEvenVisitsPerWeek > 1 ? 's' : ''} a week.`));
     }
     out.append(el('div', { class: 'row-sub', style: 'margin-top:8px' },
       `Rule of thumb: keep total labour under ~30% of revenue. Profit average uses your last ${hp.monthsUsed} completed month${hp.monthsUsed > 1 ? 's' : ''}.`));

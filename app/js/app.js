@@ -7,7 +7,7 @@ import { renderInvoices } from './views/invoices.js';
 import { renderExpenses } from './views/expenses.js';
 import { renderSettings } from './views/settings.js';
 
-export const APP_VERSION = '1.6.1';
+export const APP_VERSION = '1.7.0';
 const BRAND = 'Delisle Mowing';
 
 const VIEWS = {

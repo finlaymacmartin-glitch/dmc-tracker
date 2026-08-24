@@ -419,9 +419,27 @@ def build_labour(wb, data):
             month_nets[m] -= float(e.get("amount") or 0)
     last3 = [month_nets[m] for m in sorted(month_nets)[-3:]]
     avg_net = round(sum(last3) / len(last3), 2) if last3 else 0.0
-    visits = len(data.get("visits", {}))
-    collected = sum(float(p.get("amount") or 0) for p in payments)
-    avg_visit = round(collected / visits, 2) if visits else 0.0
+    # revenue per visit: billed basis (invoice dollars / the visits behind them),
+    # falling back to typical per-visit contract price — same math as the app
+    visits_by_invoice = {}
+    for v in data.get("visits", {}).values():
+        if v.get("invoiceId"):
+            visits_by_invoice[v["invoiceId"]] = visits_by_invoice.get(v["invoiceId"], 0) + 1
+    amt = cnt = 0
+    for inv_id, n in visits_by_invoice.items():
+        inv = data["invoices"].get(inv_id)
+        if not inv or inv.get("status") == "draft":
+            continue
+        amt += float(inv.get("amount") or 0)
+        cnt += n
+    if cnt:
+        avg_visit, visit_basis = round(amt / cnt, 2), "billed visits"
+    else:
+        prices = [float(k.get("price") or 0) for k in data["contracts"].values()
+                  if k.get("billing") in ("per-visit", "per-push") and k.get("status") == "active"
+                  and float(k.get("price") or 0) > 0]
+        avg_visit = round(sum(prices) / len(prices), 2) if prices else 0.0
+        visit_basis = "typical contract price" if prices else "n/a"
     weekly_cost = round(rate * hours_wk, 2)
 
     row = title_row(ws, row, f"Hiring-power snapshot (at {rate:.2f}/hr, {hours_wk} hrs/week)")
@@ -429,7 +447,7 @@ def build_labour(wb, data):
         ("Helper cost per month", monthly_cost, CAD),
         (f"Avg net per month (last {len(last3)} completed)", avg_net, CAD),
         ("Helpers current profit covers", int(avg_net // monthly_cost) if monthly_cost and avg_net > 0 else 0, "0"),
-        ("Avg revenue per visit", avg_visit, CAD),
+        (f"Avg revenue per visit ({visit_basis})", avg_visit, CAD),
         ("Break-even extra visits/week per helper", round(weekly_cost / avg_visit, 1) if avg_visit else "n/a", "0.0"),
     ]:
         ws.cell(row=row, column=1, value=label)

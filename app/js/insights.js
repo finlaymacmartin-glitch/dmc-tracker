@@ -67,16 +67,45 @@ export function labourStats(data) {
   };
 }
 
+// ---- revenue per visit, computed honestly ----
+// Preferred basis: dollars billed on invoices that were generated FROM logged visits,
+// divided by exactly those visits. Never distorted by monthly/seasonal revenue whose
+// work isn't visit-logged. Fallback while no visits are billed yet: the typical
+// per-visit/per-push contract price (labeled as such).
+export function revenuePerVisit(data) {
+  const invoiceById = Object.fromEntries(data.invoices.map(i => [i.id, i]));
+  const visitsByInvoice = {};
+  for (const v of data.visits) {
+    if (v.invoiceId) visitsByInvoice[v.invoiceId] = (visitsByInvoice[v.invoiceId] || 0) + 1;
+  }
+  let amount = 0, count = 0;
+  for (const [invId, n] of Object.entries(visitsByInvoice)) {
+    const inv = invoiceById[invId];
+    if (!inv || inv.status === 'draft') continue; // drafts aren't billed yet
+    amount += Number(inv.amount) || 0;
+    count += n;
+  }
+  if (count > 0) return { value: round2(amount / count), basis: 'billed', visits: count };
+  const prices = data.contracts
+    .filter(k => (k.billing === 'per-visit' || k.billing === 'per-push') && k.status === 'active' && Number(k.price) > 0)
+    .map(k => Number(k.price));
+  if (prices.length) {
+    return { value: round2(prices.reduce((s, p) => s + p, 0) / prices.length), basis: 'contract-price', visits: 0 };
+  }
+  return { value: 0, basis: 'none', visits: 0 };
+}
+
 // ---- ops ----
 export function opsStats(data) {
-  const collected = data.payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
-  const visitCount = data.visits.length;
+  const rpv = revenuePerVisit(data);
   const decided = data.quotes.filter(q => quoteStatus(q) !== 'open');
   const won = data.quotes.filter(q => q.status === 'accepted');
   const buckets = agingBuckets(data.invoices, data.payments);
   return {
-    avgPerVisit: visitCount > 0 ? round2(collected / visitCount) : 0,
-    visitCount,
+    avgPerVisit: rpv.value,
+    avgPerVisitBasis: rpv.basis,
+    billedVisits: rpv.visits,
+    visitCount: data.visits.length,
     winRate: decided.length ? won.length / decided.length : null,
     quotesDecided: decided.length,
     arTotal: buckets.total,
@@ -100,13 +129,14 @@ export function hiringPower(data, ratePerHour, hoursPerWeek) {
   }).filter(x => x.any).slice(-3);
   const avgNet = active.length ? round2(active.reduce((s, x) => s + x.net, 0) / active.length) : 0;
 
-  const { avgPerVisit } = opsStats(data);
+  const { avgPerVisit, avgPerVisitBasis } = opsStats(data);
   return {
     weeklyCost, monthlyCost, avgNet,
     monthsUsed: active.length,
     affordable: monthlyCost > 0 && avgNet > 0 ? Math.floor(avgNet / monthlyCost) : 0,
     breakEvenVisitsPerWeek: avgPerVisit > 0 && weeklyCost > 0 ? Math.ceil(weeklyCost / avgPerVisit) : null,
     avgPerVisit,
+    avgPerVisitBasis,
     thin: active.length === 0,
   };
 }
