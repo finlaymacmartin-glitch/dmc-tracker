@@ -1,0 +1,10 @@
+# NEVER commit business data — the repo holds code only.
+dmc-export-*.json
+dmc-backup-*.json
+*.export.json
+DMC_Books.xlsx
+~$*.xlsx
+
+# OS noise
+Thumbs.db
+.DS_Store
