@@ -7,7 +7,7 @@ import { renderInvoices } from './views/invoices.js';
 import { renderExpenses } from './views/expenses.js';
 import { renderSettings } from './views/settings.js';
 
-export const APP_VERSION = '1.7.0';
+export const APP_VERSION = '1.8.0';
 const BRAND = 'Delisle Mowing';
 
 const VIEWS = {
@@ -92,6 +92,14 @@ export function select(name, options, selected) {
   }
   return s;
 }
+// Search input that redraws a list WITHOUT a full re-render (keeps keyboard focus).
+export function searchBox(placeholder, value, onInput) {
+  const input = el('input', { class: 'search', type: 'search', placeholder, autocomplete: 'off' });
+  input.value = value;
+  input.addEventListener('input', () => onInput(input.value));
+  return input;
+}
+
 export function formValues(form) {
   const out = {};
   for (const input of form.querySelectorAll('[name]')) out[input.name] = input.value.trim();
@@ -125,11 +133,16 @@ if (navigator.storage && navigator.storage.persist) {
 
 // Service worker: offline cache. Updates are AUTOMATIC — a new version installs,
 // takes control, and the page reloads itself once. No toast to tap.
+// Guards: no reload on FIRST install (page is already network-fresh, and reloading
+// could interrupt an in-flight restore), and never while a form/modal is open.
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
+  let hadController = !!navigator.serviceWorker.controller;
   let reloaded = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) { hadController = true; return; }
     if (reloaded) return;
+    if (document.querySelector('.modal-backdrop')) return;
     reloaded = true;
     location.reload();
   });

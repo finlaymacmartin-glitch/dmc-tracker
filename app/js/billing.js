@@ -12,20 +12,32 @@ export function billingSuggestions(data, dismissed = {}) {
   const out = [];
   const cur = monthKey(today());
   const clientById = Object.fromEntries(data.clients.map(c => [c.id, c]));
+  // one pass each over invoices and visits, instead of a rescan per contract
+  const invoicesByContract = new Map();
+  for (const i of data.invoices) {
+    if (!i.contractId) continue;
+    if (!invoicesByContract.has(i.contractId)) invoicesByContract.set(i.contractId, []);
+    invoicesByContract.get(i.contractId).push(i);
+  }
+  const unbilledByContract = new Map();
+  for (const v of data.visits) {
+    if (v.invoiceId) continue;
+    if (!unbilledByContract.has(v.contractId)) unbilledByContract.set(v.contractId, []);
+    unbilledByContract.get(v.contractId).push(v);
+  }
 
   for (const k of data.contracts) {
     if (k.status !== 'active') continue;
     const client = clientById[k.clientId];
     if (!client) continue;
     const price = Number(k.price) || 0;
-    const contractInvoices = data.invoices.filter(i => i.contractId === k.id);
+    const contractInvoices = invoicesByContract.get(k.id) || [];
 
     if (k.billing === 'per-visit' || k.billing === 'per-push') {
       // bill completed months only — this month's visits/pushes wait until the month ends
       const word = k.billing === 'per-push' ? 'push' : 'visit';
       const byMonth = {};
-      for (const v of data.visits) {
-        if (v.contractId !== k.id || v.invoiceId) continue;
+      for (const v of unbilledByContract.get(k.id) || []) {
         const m = monthKey(v.date);
         if (m && m < cur) (byMonth[m] = byMonth[m] || []).push(v);
       }

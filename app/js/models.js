@@ -113,9 +113,34 @@ export function addDays(dateStr, n) {
 }
 
 // ---------- invoice / AR math (always derived, never hand-entered) ----------
+// Payment sums are memoized per payments-array (fresh array every render via loadAll),
+// turning per-invoice cost from O(payments) into O(1). Same trick for per-client invoices.
+const paidCache = new WeakMap();
+function paidByInvoice(payments) {
+  let m = paidCache.get(payments);
+  if (!m) {
+    m = new Map();
+    for (const p of payments) m.set(p.invoiceId, (m.get(p.invoiceId) || 0) + (Number(p.amount) || 0));
+    paidCache.set(payments, m);
+  }
+  return m;
+}
+const invByClientCache = new WeakMap();
+function invoicesByClient(invoices) {
+  let m = invByClientCache.get(invoices);
+  if (!m) {
+    m = new Map();
+    for (const i of invoices) {
+      if (!m.has(i.clientId)) m.set(i.clientId, []);
+      m.get(i.clientId).push(i);
+    }
+    invByClientCache.set(invoices, m);
+  }
+  return m;
+}
+
 export function invoiceState(invoice, payments) {
-  const paid = payments.filter(p => p.invoiceId === invoice.id)
-    .reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const paid = paidByInvoice(payments).get(invoice.id) || 0;
   const amount = Number(invoice.amount) || 0;
   const balance = Math.max(0, round2(amount - paid));
   const daysPastDue = invoice.dueDate && balance > 0.004 ? daysBetween(invoice.dueDate, today()) : 0;
@@ -129,8 +154,8 @@ export function invoiceState(invoice, payments) {
 }
 
 export function clientBalance(clientId, invoices, payments) {
-  return round2(invoices
-    .filter(i => i.clientId === clientId && i.status !== 'draft')
+  return round2((invoicesByClient(invoices).get(clientId) || [])
+    .filter(i => i.status !== 'draft')
     .reduce((s, i) => s + invoiceState(i, payments).balance, 0));
 }
 

@@ -19,16 +19,21 @@ export async function renderDashboard(root, data, { lastExportAt }) {
     .reduce((s, e) => s + (Number(e.amount) || 0), 0);
   const net = revenueThisMonth - expensesThisMonth;
 
-  // ---- alerts ----
+  // ---- alerts (capped: nobody reads 50 alerts; the worst ones surface first) ----
   const alerts = computeAlerts(data, lastExportAt);
   root.append(el('div', { class: 'section-label' }, 'Needs attention'));
   if (alerts.length === 0) {
     root.append(el('div', { class: 'card' },
       el('div', { class: 'row-sub' }, '✅ All clear — nothing overdue, nothing over budget.')));
   } else {
-    for (const a of alerts) {
+    for (const a of alerts.slice(0, 8)) {
       root.append(el('div', { class: `alert ${a.level}`, onclick: () => navigate(a.view, a.params || {}) },
         el('span', { class: 'a-icon' }, a.icon), el('span', {}, a.text)));
+    }
+    if (alerts.length > 8) {
+      root.append(el('div', { class: 'alert info', onclick: () => navigate('invoices') },
+        el('span', { class: 'a-icon' }, '➕'),
+        el('span', {}, `…and ${alerts.length - 8} more — the Money tab's Overdue filter has the full list.`)));
     }
   }
 
@@ -36,8 +41,9 @@ export async function renderDashboard(root, data, { lastExportAt }) {
   const dismissed = (await getMeta('dismissedBilling')) || {};
   const suggestions = billingSuggestions(data, dismissed);
   if (suggestions.length) {
-    root.append(el('div', { class: 'section-label' }, 'Ready to bill'));
-    for (const s of suggestions) {
+    root.append(el('div', { class: 'section-label' },
+      suggestions.length > 10 ? `Ready to bill (10 of ${suggestions.length})` : 'Ready to bill'));
+    for (const s of suggestions.slice(0, 10)) {
       root.append(el('div', { class: 'card' },
         el('div', { class: 'row' },
           el('div', { class: 'row-main' },

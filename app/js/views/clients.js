@@ -1,12 +1,15 @@
 // Clients: list with balance owed → client detail (contracts + invoices) → add/edit forms.
 
-import { el, navigate, render, openModal, closeModal, field, textInput, numberInput, dateInput, select, formValues, toast, confirmAction } from '../app.js';
+import { el, navigate, render, openModal, closeModal, field, textInput, numberInput, dateInput, select, formValues, searchBox, toast, confirmAction } from '../app.js';
 import { put, remove, getAll } from '../db.js';
 import { newClient, newContract, newVisit, newCrew, newShift, newExpense, touch, clientBalance, invoiceState, shiftAmount, crewOwed, money, fmtDate, today, round2, SERVICES, BILLING_TYPES, BILLING_LABELS, LINES } from '../models.js';
 import { unbilledVisits } from '../billing.js';
 import { onMyWayText, shareText } from '../messages.js';
 
 let clientsMode = 'clients'; // 'clients' | 'crew'
+let clientQ = '';
+let crewQ = '';
+const LIST_CAP = 200;
 
 export function renderClients(root, data, { params }) {
   if (params.clientId) return renderClientDetail(root, data, params.clientId);
@@ -26,16 +29,32 @@ export function renderClients(root, data, { params }) {
     root.append(el('div', { class: 'empty' }, 'No clients yet. Add your first one above.'));
     return;
   }
-  for (const c of clients) {
-    const balance = clientBalance(c.id, data.invoices, data.payments);
-    const activeContracts = data.contracts.filter(k => k.clientId === c.id && k.status === 'active').length;
-    root.append(el('div', { class: 'card tappable', onclick: () => navigate('clients', { clientId: c.id }) },
-      el('div', { class: 'row' },
-        el('div', { class: 'row-main' },
-          el('div', { class: 'row-title' }, c.name),
-          el('div', { class: 'row-sub' }, [c.address, activeContracts ? `${activeContracts} active contract${activeContracts > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ') || 'No details')),
-        el('div', { class: 'row-amount' + (balance > 0 ? ' neg' : '') }, balance > 0 ? money(balance) : '—'))));
+  // per-contract active counts in one pass (matters at large client counts)
+  const activeByClient = new Map();
+  for (const k of data.contracts) {
+    if (k.status === 'active') activeByClient.set(k.clientId, (activeByClient.get(k.clientId) || 0) + 1);
   }
+  const listBox = el('div');
+  const draw = () => {
+    listBox.innerHTML = '';
+    const q = clientQ.trim().toLowerCase();
+    const matched = clients.filter(c => !q || `${c.name} ${c.address} ${c.phone} ${c.notes}`.toLowerCase().includes(q));
+    for (const c of matched.slice(0, LIST_CAP)) {
+      const balance = clientBalance(c.id, data.invoices, data.payments);
+      const activeContracts = activeByClient.get(c.id) || 0;
+      listBox.append(el('div', { class: 'card tappable', onclick: () => navigate('clients', { clientId: c.id }) },
+        el('div', { class: 'row' },
+          el('div', { class: 'row-main' },
+            el('div', { class: 'row-title' }, c.name),
+            el('div', { class: 'row-sub' }, [c.address, activeContracts ? `${activeContracts} active contract${activeContracts > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ') || 'No details')),
+          el('div', { class: 'row-amount' + (balance > 0 ? ' neg' : '') }, balance > 0 ? money(balance) : '—'))));
+    }
+    if (matched.length === 0) listBox.append(el('div', { class: 'empty' }, 'No clients match that search.'));
+    else if (matched.length > LIST_CAP) listBox.append(el('div', { class: 'empty' }, `Showing ${LIST_CAP} of ${matched.length} — type to narrow down.`));
+  };
+  if (clients.length > 5) root.append(searchBox('Search clients…', clientQ, v => { clientQ = v; draw(); }));
+  root.append(listBox);
+  draw();
   root.append(el('div', { class: 'fab-space' }));
 }
 
@@ -122,17 +141,27 @@ function renderCrewList(root, data) {
     root.append(el('div', { class: 'empty' }, 'No crew yet. Add whoever helps you out — log their shifts, and the app tracks what you owe them.'));
     return;
   }
-  for (const c of members) {
-    const owed = crewOwed(c.id, data.shifts);
-    root.append(el('div', { class: 'card tappable', onclick: () => navigate('clients', { crewId: c.id }) },
-      el('div', { class: 'row' },
-        el('div', { class: 'row-main' },
-          el('div', { class: 'row-title' }, c.name),
-          el('div', { class: 'row-sub' }, [c.defaultRate > 0 ? `${money(c.defaultRate)}/hr` : '', c.status === 'inactive' ? 'inactive' : ''].filter(Boolean).join(' · ') || 'No rate set')),
-        el('div', {},
-          el('div', { class: 'row-amount' + (owed > 0 ? ' neg' : '') }, owed > 0 ? money(owed) : '—'),
-          owed > 0 ? el('div', { class: 'row-sub', style: 'text-align:right' }, 'owed') : null))));
-  }
+  const listBox = el('div');
+  const draw = () => {
+    listBox.innerHTML = '';
+    const q = crewQ.trim().toLowerCase();
+    const matched = members.filter(c => !q || `${c.name} ${c.phone} ${c.notes}`.toLowerCase().includes(q));
+    for (const c of matched.slice(0, LIST_CAP)) {
+      const owed = crewOwed(c.id, data.shifts);
+      listBox.append(el('div', { class: 'card tappable', onclick: () => navigate('clients', { crewId: c.id }) },
+        el('div', { class: 'row' },
+          el('div', { class: 'row-main' },
+            el('div', { class: 'row-title' }, c.name),
+            el('div', { class: 'row-sub' }, [c.defaultRate > 0 ? `${money(c.defaultRate)}/hr` : '', c.status === 'inactive' ? 'inactive' : ''].filter(Boolean).join(' · ') || 'No rate set')),
+          el('div', {},
+            el('div', { class: 'row-amount' + (owed > 0 ? ' neg' : '') }, owed > 0 ? money(owed) : '—'),
+            owed > 0 ? el('div', { class: 'row-sub', style: 'text-align:right' }, 'owed') : null))));
+    }
+    if (matched.length === 0) listBox.append(el('div', { class: 'empty' }, 'No crew match that search.'));
+  };
+  if (members.length > 5) root.append(searchBox('Search crew…', crewQ, v => { crewQ = v; draw(); }));
+  root.append(listBox);
+  draw();
   root.append(el('div', { class: 'fab-space' }));
 }
 

@@ -2,7 +2,7 @@
 // Invoice status and balances are always derived from payments, never typed in.
 // Quotes: open → accepted (auto-creates client + contract) / declined; expiry derived.
 
-import { el, navigate, render, openModal, closeModal, field, textInput, numberInput, dateInput, select, formValues, toast, confirmAction } from '../app.js';
+import { el, navigate, render, openModal, closeModal, field, textInput, numberInput, dateInput, select, formValues, searchBox, toast, confirmAction } from '../app.js';
 import { put, remove } from '../db.js';
 import {
   newInvoice, newPayment, newQuote, newClient, newContract, touch, invoiceState,
@@ -13,6 +13,9 @@ import { getBusiness, paymentRequestText, reviewRequestText, shareText } from '.
 
 let filter = 'open';
 let moneyMode = 'invoices'; // 'invoices' | 'quotes'
+let invQ = '';
+let quoteQ = '';
+const LIST_CAP = 200;
 
 export function renderInvoices(root, data, { params }) {
   if (params.invoiceId) return renderInvoiceDetail(root, data, params.invoiceId);
@@ -46,18 +49,33 @@ export function renderInvoices(root, data, { params }) {
     root.append(el('div', { class: 'empty' }, filter === 'all' ? 'No invoices yet.' : `No ${filter === 'drafts' ? 'draft' : filter} invoices.`));
     return;
   }
-  for (const { inv, st } of rows) {
-    const who = clientById[inv.clientId]?.name || 'Unknown client';
-    root.append(el('div', { class: 'card tappable', onclick: () => navigate('invoices', { invoiceId: inv.id }) },
-      el('div', { class: 'row' },
-        el('div', { class: 'row-main' },
-          el('div', { class: 'row-title' }, `${who} · ${inv.number}`),
-          el('div', { class: 'row-sub' },
-            st.balance > 0.004
-              ? `${money(st.balance)} owing${st.daysPastDue > 0 ? ` · ${st.daysPastDue}d overdue` : inv.dueDate ? ` · due ${fmtDate(inv.dueDate)}` : ''}`
-              : `Paid in full · ${money(inv.amount)}`)),
-        el('span', { class: `chip ${st.status}` }, st.status))));
-  }
+  const listBox = el('div');
+  const draw = () => {
+    listBox.innerHTML = '';
+    const q = invQ.trim().toLowerCase();
+    const matched = rows.filter(({ inv }) => {
+      if (!q) return true;
+      const who = clientById[inv.clientId]?.name || '';
+      return `${inv.number} ${who} ${inv.notes}`.toLowerCase().includes(q);
+    });
+    for (const { inv, st } of matched.slice(0, LIST_CAP)) {
+      const who = clientById[inv.clientId]?.name || 'Unknown client';
+      listBox.append(el('div', { class: 'card tappable', onclick: () => navigate('invoices', { invoiceId: inv.id }) },
+        el('div', { class: 'row' },
+          el('div', { class: 'row-main' },
+            el('div', { class: 'row-title' }, `${who} · ${inv.number}`),
+            el('div', { class: 'row-sub' },
+              st.balance > 0.004
+                ? `${money(st.balance)} owing${st.daysPastDue > 0 ? ` · ${st.daysPastDue}d overdue` : inv.dueDate ? ` · due ${fmtDate(inv.dueDate)}` : ''}`
+                : `Paid in full · ${money(inv.amount)}`)),
+          el('span', { class: `chip ${st.status}` }, st.status))));
+    }
+    if (matched.length === 0) listBox.append(el('div', { class: 'empty' }, 'No invoices match that search.'));
+    else if (matched.length > LIST_CAP) listBox.append(el('div', { class: 'empty' }, `Showing ${LIST_CAP} of ${matched.length} — type to narrow down.`));
+  };
+  if (data.invoices.length > 5) root.append(searchBox('Search by client or invoice #…', invQ, v => { invQ = v; draw(); }));
+  root.append(listBox);
+  draw();
   root.append(el('div', { class: 'fab-space' }));
 }
 
@@ -77,15 +95,26 @@ function renderQuotes(root, data) {
     return;
   }
   const chipClass = { open: 'sent', accepted: 'paid', declined: 'overdue', expired: 'draft' };
-  for (const q of quotes) {
-    const st = quoteStatus(q);
-    root.append(el('div', { class: 'card tappable', onclick: () => quoteActions(q, data) },
-      el('div', { class: 'row' },
-        el('div', { class: 'row-main' },
-          el('div', { class: 'row-title' }, `${quoteName(q, data.clients)} · ${money(q.price)} ${BILLING_LABELS[q.billing] || q.billing}`),
-          el('div', { class: 'row-sub' }, [cap(q.service), q.description, `sent ${fmtDate(q.dateIssued)}`, st === 'open' && q.expiryDate ? `expires ${fmtDate(q.expiryDate)}` : ''].filter(Boolean).join(' · '))),
-        el('span', { class: `chip ${chipClass[st]}` }, st))));
-  }
+  const listBox = el('div');
+  const draw = () => {
+    listBox.innerHTML = '';
+    const ql = quoteQ.trim().toLowerCase();
+    const matched = quotes.filter(q => !ql ||
+      `${quoteName(q, data.clients)} ${q.service} ${q.description} ${q.notes}`.toLowerCase().includes(ql));
+    for (const q of matched.slice(0, LIST_CAP)) {
+      const st = quoteStatus(q);
+      listBox.append(el('div', { class: 'card tappable', onclick: () => quoteActions(q, data) },
+        el('div', { class: 'row' },
+          el('div', { class: 'row-main' },
+            el('div', { class: 'row-title' }, `${quoteName(q, data.clients)} · ${money(q.price)} ${BILLING_LABELS[q.billing] || q.billing}`),
+            el('div', { class: 'row-sub' }, [cap(q.service), q.description, `sent ${fmtDate(q.dateIssued)}`, st === 'open' && q.expiryDate ? `expires ${fmtDate(q.expiryDate)}` : ''].filter(Boolean).join(' · '))),
+          el('span', { class: `chip ${chipClass[st]}` }, st))));
+    }
+    if (matched.length === 0) listBox.append(el('div', { class: 'empty' }, 'No quotes match that search.'));
+  };
+  if (quotes.length > 5) root.append(searchBox('Search quotes…', quoteQ, v => { quoteQ = v; draw(); }));
+  root.append(listBox);
+  draw();
   root.append(el('div', { class: 'fab-space' }));
 }
 
