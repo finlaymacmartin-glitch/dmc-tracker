@@ -3,10 +3,27 @@
 import { el, render, toast, confirmAction, field, textInput, APP_VERSION } from '../app.js';
 import { clearStore, getMeta, setMeta, STORES } from '../db.js';
 import { exportAndShare, restoreFromFile } from '../export.js';
+import { loadDemoData } from '../demo.js';
 import { fmtDate } from '../models.js';
 
 export async function renderSettings(root, data, { lastExportAt }) {
   const counts = `${data.clients.length} clients · ${data.invoices.length} invoices · ${data.payments.length} payments · ${data.expenses.length} expenses`;
+
+  // demo data — offered ONLY while the app is completely empty, so it can never overwrite real records
+  const isEmpty = !data.clients.length && !data.invoices.length && !data.expenses.length && !data.quotes.length && !data.crew.length;
+  if (isEmpty) {
+    root.append(el('div', { class: 'section-label' }, 'Try it out'));
+    root.append(el('div', { class: 'card' },
+      el('div', { class: 'row-sub', style: 'margin-bottom:10px' },
+        'Fill the app with a season of realistic sample data — clients, overdue invoices, crew wages, budgets — to see how everything works. This option disappears once real data exists; erase all data (below) to bring it back.'),
+      el('button', {
+        class: 'btn secondary', onclick: async () => {
+          const n = await loadDemoData();
+          toast(`Demo loaded — ${n} sample clients ✔`);
+          render();
+        }
+      }, '🌱 Load demo data')));
+  }
 
   // ---- export ----
   root.append(el('div', { class: 'section-label' }, 'Send data to Finlay'));
