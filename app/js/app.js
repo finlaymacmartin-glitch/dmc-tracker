@@ -9,11 +9,11 @@ import { renderInvoices } from './views/invoices.js';
 import { renderExpenses } from './views/expenses.js';
 import { renderSettings } from './views/settings.js';
 
-export const APP_VERSION = '2.0.1';
+export const APP_VERSION = '2.0.2';
 const BRAND = 'Delisle Mowing';
 
 const VIEWS = {
-  dashboard: { title: 'Insights', render: renderDashboard },
+  dashboard: { title: 'Today', render: renderDashboard },
   schedule: { title: 'Schedule', render: renderSchedule },
   clients: { title: 'Clients', render: renderClients },
   crew: { title: 'Crew', render: renderCrew },

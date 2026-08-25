@@ -8,8 +8,9 @@
   --green-deep: #0d47a1;
   --green-soft: #e3eefb;
   --green-mist: #f2f6fb;
-  --snow: #1565c0;
-  --snow-soft: #e3eefb;
+  /* plowing = icy cyan, distinct from the blue brand so blue means "brand", cyan means "snow" */
+  --snow: #0e7490;
+  --snow-soft: #def3f8;
 
   /* neutrals (tinted toward brand hue, never cream) */
   --bg: #edf0f4;
@@ -389,6 +390,32 @@ input.search::placeholder { color: #6d7a72; }
 /* ---------- v2: big Done + assignee chip ---------- */
 .job-done-btn { min-height: 52px; font-size: 1rem; }
 .chip.assignee { background: var(--green-soft); color: var(--green-deep); margin-left: 8px; vertical-align: 2px; }
+
+/* ---------- v2: personality ---------- */
+/* section labels get a brand tick so sections read as sections, not gray text */
+.section-label { display: flex; align-items: center; gap: 7px; }
+.section-label::before { content: ''; width: 4px; height: 11px; border-radius: 2px; background: var(--green); flex: none; }
+/* hero number gets real display weight */
+.hero-value { font-size: 2.4rem; font-weight: 850; letter-spacing: -0.03em; }
+.stat.hero .value { font-size: 1.9rem; font-weight: 800; }
+
+/* cash flow bars (replaces the P&L table) */
+.cash-row { display: grid; grid-template-columns: 3.4em 1fr auto; gap: 10px; align-items: center; padding: 7px 0; }
+.cash-row + .cash-row { border-top: 1px solid var(--border); }
+.cash-month { font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+.cash-bars { display: flex; flex-direction: column; gap: 3px; }
+.cash-bar { height: 7px; border-radius: 4px; min-width: 3px; }
+.cash-bar.in { background: var(--ok); }
+.cash-bar.out { background: #e08a80; }
+.cash-net { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 0.95rem; }
+.cash-net.neg { color: var(--danger); }
+
+/* per-line cards, color-coded edges */
+.line-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.line-card { border-left: 4px solid var(--border-strong); }
+.line-card.mowing { border-left-color: var(--ok); }
+.line-card.plowing { border-left-color: var(--snow); }
+.line-card .value { font-size: 1.3rem; }
 
 /* ---------- reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {

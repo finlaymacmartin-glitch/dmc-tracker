@@ -138,27 +138,28 @@ export function renderInsights(root, data) {
       ops.avgPerVisit > 0 ? money(ops.avgPerVisit) : '—', ''),
     stat('Quote win rate', ops.winRate === null ? '—' : `${Math.round(ops.winRate * 100)}%`, '')));
 
+  // monthly cash flow as glanceable bars: in (green) vs out (red), bold net — no table
   root.append(el('div', { class: 'section-label', style: 'margin-top:0' }, 'Monthly cash flow'));
   if (pnl.length === 0) root.append(el('div', { class: 'empty' }, 'No activity yet.'));
-  else root.append(el('table', { class: 'stmt-table' },
-    el('thead', {}, el('tr', {},
-      el('th', {}, 'Month'), el('th', { class: 'num' }, 'In'), el('th', { class: 'num' }, 'Out'), el('th', { class: 'num' }, 'Net'))),
-    el('tbody', {}, pnl.map(r => el('tr', {},
-      el('td', {}, fmtMonth(r.month)),
-      el('td', { class: 'num' }, money(r.revenue)),
-      el('td', { class: 'num' }, money(r.expenses)),
-      el('td', { class: 'num', style: r.net < 0 ? 'color:var(--danger);font-weight:700' : 'font-weight:700' }, money(r.net)))))));
+  else {
+    const max = Math.max(...pnl.map(r => Math.max(r.revenue, r.expenses)), 1);
+    root.append(el('div', { class: 'card cash-card' }, pnl.map(r =>
+      el('div', { class: 'cash-row' },
+        el('div', { class: 'cash-month' }, fmtMonth(r.month).replace(/ \d{4}$/, '')),
+        el('div', { class: 'cash-bars' },
+          el('div', { class: 'cash-bar in', style: `width:${Math.max(2, r.revenue / max * 100)}%` }),
+          el('div', { class: 'cash-bar out', style: `width:${Math.max(2, r.expenses / max * 100)}%` })),
+        el('div', { class: 'cash-net' + (r.net < 0 ? ' neg' : '') }, money(r.net))))));
+  }
 
+  // per-line cards, color-coded (green = mowing, cyan = plowing)
   root.append(el('div', { class: 'section-label' }, 'Mowing vs plowing (all time, owed wages included)'));
   if (lines.length === 0) root.append(el('div', { class: 'empty' }, 'No line-tagged activity yet.'));
-  else root.append(el('table', { class: 'stmt-table' },
-    el('thead', {}, el('tr', {},
-      el('th', {}, 'Line'), el('th', { class: 'num' }, 'Revenue'), el('th', { class: 'num' }, 'Costs'), el('th', { class: 'num' }, 'Net'))),
-    el('tbody', {}, lines.map(r => el('tr', {},
-      el('td', {}, r.line[0].toUpperCase() + r.line.slice(1)),
-      el('td', { class: 'num' }, money(r.revenue)),
-      el('td', { class: 'num' }, money(r.expenses + r.wagesOwed)),
-      el('td', { class: 'num', style: r.net < 0 ? 'color:var(--danger);font-weight:700' : 'font-weight:700' }, money(r.net)))))));
+  else root.append(el('div', { class: 'line-grid' }, lines.map(r =>
+    el('div', { class: `stat line-card ${r.line}` },
+      el('div', { class: 'label' }, r.line[0].toUpperCase() + r.line.slice(1)),
+      el('div', { class: 'value' + (r.net < 0 ? ' neg' : '') }, money(r.net)),
+      el('div', { class: 'row-sub' }, `${money(r.revenue)} in · ${money(r.expenses + r.wagesOwed)} out`)))));
   root.append(el('div', { class: 'row-sub', style: 'margin-top:10px' },
     'Cash basis: money in = payments received, money out = expenses (paid wages included).'));
 
