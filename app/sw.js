@@ -1,7 +1,7 @@
 // Service worker: precache the app shell for full offline use.
 // Bump VERSION on every deploy — updates then apply AUTOMATICALLY on next load (no user action).
 
-const VERSION = '2.1.1';
+const VERSION = '2.1.2';
 const CACHE = 'dmc-' + VERSION;
 
 const ASSETS = [

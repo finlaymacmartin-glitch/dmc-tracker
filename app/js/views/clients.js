@@ -2,7 +2,7 @@
 
 import { el, navigate, render, openModal, closeModal, field, textInput, numberInput, dateInput, select, formValues, searchBox, toast, confirmAction } from '../app.js';
 import { put, remove, getAll } from '../db.js';
-import { newClient, newContract, newVisit, touch, clientBalance, invoiceState, money, fmtDate, SERVICES, BILLING_TYPES, BILLING_LABELS, REPEAT_LABELS } from '../models.js';
+import { newClient, newContract, newVisit, touch, clientBalance, invoiceState, money, fmtDate, today, SERVICES, BILLING_TYPES, BILLING_LABELS, REPEAT_LABELS } from '../models.js';
 import { unbilledVisits } from '../billing.js';
 import { onMyWayText, shareText } from '../messages.js';
 import { icon } from '../icons.js';
@@ -159,8 +159,17 @@ function statementModal(client, data) {
         el('div', { class: 'row-title' }, client.name),
         client.address ? el('div', { class: 'row-sub' }, client.address) : null,
         client.phone ? el('div', { class: 'row-sub' }, client.phone) : null)),
+    // what they're signed up for — so a new client's statement isn't a blank page
+    (() => {
+      const active = data.contracts.filter(k => k.clientId === client.id && k.status === 'active');
+      if (!active.length) return null;
+      return el('div', { class: 'stmt-agreement' },
+        el('div', { class: 'section-label', style: 'margin-top:0' }, 'Agreement'),
+        active.map(k => el('div', { class: 'row-sub' },
+          `${cap(k.service)} — ${money(k.price)} ${(BILLING_LABELS[k.billing] || k.billing).toLowerCase()}${k.frequency ? ' · ' + k.frequency : ''}`)));
+    })(),
     events.length === 0
-      ? el('div', { class: 'empty' }, 'No activity yet.')
+      ? el('div', { class: 'empty' }, 'No invoices or payments yet — nothing to bill on this statement.')
       : el('table', { class: 'stmt-table' },
           el('thead', {}, el('tr', {},
             el('th', {}, 'Date'), el('th', {}, 'Description'),

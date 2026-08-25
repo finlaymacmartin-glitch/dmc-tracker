@@ -388,6 +388,8 @@ input.search::placeholder { color: #6d7a72; }
 .stat-hero-row { grid-template-columns: 1fr; margin-bottom: 10px; }
 .stat.hero .value { font-size: 1.8rem; }
 
+.stmt-agreement { margin-bottom: 14px; }
+
 /* ---------- v2: per-job tick circle (the obvious "this one's done") ---------- */
 .tick {
   width: 48px; height: 48px; flex: none; border-radius: 50%; cursor: pointer;

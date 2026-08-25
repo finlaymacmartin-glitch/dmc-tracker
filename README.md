@@ -171,6 +171,7 @@ python scripts\serve.py                    # in one window, then:
 python tests\v2_test.py                    # 22-step end-to-end (needs Edge)
 python tests\v2_offline_test.py            # precache + fully-offline render
 python tests\v2_data_survival_test.py      # old data survives an update
+python tests\v2_modals_test.py             # every modal opens without a page error
 ```
 
 ## Safety notes
