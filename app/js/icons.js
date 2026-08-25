@@ -23,6 +23,8 @@ const P = {
   check: '<circle cx="12" cy="12" r="8.6"/><path d="m8.3 12.2 2.6 2.6 4.9-5"/>',
   clock: '<circle cx="12" cy="12" r="8.6"/><path d="M12 7.4V12l3.2 2"/>',
   plus: '<circle cx="12" cy="12" r="8.6"/><path d="M12 8.2v7.6M8.2 12h7.6"/>',
+  mail: '<rect x="2.8" y="5" width="18.4" height="14" rx="2.4"/><path d="m3.4 7 8.6 6 8.6-6"/>',
+  share: '<path d="M12 15.5V4"/><path d="m8 7.5 4-3.5 4 3.5"/><path d="M5 13v5.5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V13"/>',
 };
 
 // returns an <svg> element; `cls` lets callers size it (.ico-sm etc.)

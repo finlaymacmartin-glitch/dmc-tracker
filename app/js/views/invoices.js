@@ -10,7 +10,8 @@ import {
   nextInvoiceNumber, quoteName, quoteStatus, money, fmtDate, fmtMonth, addDays, today, round2,
   PAYMENT_METHODS, SERVICES, BILLING_TYPES, BILLING_LABELS,
 } from '../models.js';
-import { getBusiness, paymentRequestText, reviewRequestText, shareText } from '../messages.js';
+import { getBusiness, paymentRequestText, reviewRequestText } from '../messages.js';
+import { sendSheet } from './sendsheet.js';
 import { monthlyPnl, linePnl, labourStats, opsStats, hiringPower, defaultWageRate } from '../insights.js';
 import { icon } from '../icons.js';
 
@@ -349,17 +350,15 @@ function renderInvoiceDetail(root, data, invoiceId) {
     el('div', { class: 'btn-row' },
       st.status !== 'draft' && st.balance > 0.004 && client ? el('button', {
         class: 'btn secondary small', onclick: async () => {
-          const result = await shareText(paymentRequestText(client, inv, st.balance, await getBusiness()));
-          if (result === 'shared') toast('Share sheet opened ✔');
-          else if (result === 'copied') toast('Message copied — paste it into a text');
+          const text = paymentRequestText(client, inv, st.balance, await getBusiness());
+          sendSheet('Request payment', client, text, `Invoice ${inv.number} — Delisle Mowing`);
         }
       }, icon('message', 'ico-inline'), ' Request payment') : null,
       st.status === 'overdue' ? el('button', { class: 'btn secondary small', onclick: () => lateFeeForm(inv, st) }, '+ Late fee') : null,
       st.status === 'paid' && client ? el('button', {
         class: 'btn secondary small', onclick: async () => {
-          const result = await shareText(reviewRequestText(client, await getBusiness()));
-          if (result === 'shared') toast('Share sheet opened ✔');
-          else if (result === 'copied') toast('Message copied — paste it into a text');
+          const text = reviewRequestText(client, await getBusiness());
+          sendSheet('Ask for a review', client, text, 'Thanks from Delisle Mowing');
         }
       }, icon('star', 'ico-inline'), ' Ask for review') : null)));
 

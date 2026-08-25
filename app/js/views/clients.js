@@ -4,7 +4,8 @@ import { el, navigate, render, openModal, closeModal, field, textInput, numberIn
 import { put, remove, getAll } from '../db.js';
 import { newClient, newContract, newVisit, touch, clientBalance, invoiceState, money, fmtDate, today, SERVICES, BILLING_TYPES, BILLING_LABELS, REPEAT_LABELS } from '../models.js';
 import { unbilledVisits } from '../billing.js';
-import { onMyWayText, shareText } from '../messages.js';
+import { onMyWayText } from '../messages.js';
+import { sendSheet } from './sendsheet.js';
 import { icon } from '../icons.js';
 
 let clientQ = '';
@@ -68,11 +69,8 @@ function renderClientDetail(root, data, clientId) {
       el('div', { class: 'row-amount' + (balance > 0 ? ' neg' : '') }, money(balance))),
     el('div', { class: 'btn-row' },
       el('button', {
-        class: 'btn secondary small', onclick: async () => {
-          const result = await shareText(onMyWayText(client));
-          if (result === 'shared') toast('Share sheet opened ✔');
-          else if (result === 'copied') toast('Message copied — paste it into a text');
-        }
+        class: 'btn secondary small',
+        onclick: () => sendSheet('On my way', client, onMyWayText(client), 'On my way'),
       }, icon('truck', 'ico-inline'), ' On my way'),
       el('button', { class: 'btn secondary small', onclick: () => statementModal(client, data) }, icon('receipt', 'ico-inline'), ' Statement'),
       el('button', { class: 'btn subtle small', onclick: () => clientForm(client, data) }, 'Edit'),
