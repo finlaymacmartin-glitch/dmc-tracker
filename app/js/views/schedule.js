@@ -6,6 +6,7 @@ import { put } from '../db.js';
 import { newJob, today, addDays } from '../models.js';
 import { agenda, catchUp, unscheduled } from '../schedule.js';
 import { jobRow } from './jobrow.js';
+import { icon } from '../icons.js';
 
 let schedMode = 'agenda'; // 'agenda' | 'month'
 let monthOffset = 0;
@@ -23,7 +24,7 @@ export function renderSchedule(root, data) {
     const clientById = new Map(data.clients.map(c => [c.id, c]));
     const names = missing.slice(0, 3).map(k => clientById.get(k.clientId)?.name).filter(Boolean).join(', ');
     root.append(el('div', { class: 'alert info', onclick: () => navigate('clients') },
-      el('span', { class: 'a-icon' }, '🗓'),
+      el('span', { class: 'a-icon' }, icon('calendarAdd')),
       el('span', {}, `${missing.length} contract${missing.length > 1 ? 's aren’t' : ' isn’t'} on the schedule yet (${names}${missing.length > 3 ? '…' : ''}) — open the contract and set “Repeats”.`)));
   }
 

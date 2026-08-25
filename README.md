@@ -17,7 +17,8 @@ His iPhone (the record)                    Finlay's PC
 
 **Privacy model:** GitHub only ever hosts the app's *code*. All business data lives in the
 browser's IndexedDB on his phone. The app makes zero network calls with data in them.
-Data leaves the device only when he taps **Settings → Export data** and shares the file.
+Data leaves the device only when he taps **Settings → Send to Finlay** and picks a
+destination in the share sheet.
 The `.gitignore` blocks export files and the workbook from ever being committed.
 
 ---
@@ -59,45 +60,62 @@ pip install openpyxl
 3. Open it from the Home Screen icon from then on. It works fully offline after the
    first load.
 
-## 3. Everyday use (him)
+## 3. The tabs (v2.0)
 
+`Today · Schedule · Clients · Crew · Money · Expenses`, plus a **gear in the top-right
+corner for Settings** (it's the one screen that's never a driveway action).
+
+## 4. Everyday use (him)
+
+* **Today tab** — the screen he opens 20× a day. Today's jobs first, each with a big
+  **✓ Done** button; missed work is flagged at the top. Then the alert centre (overdue
+  invoices, contracts ending, over-budget categories, backup reminders — iPhone can't
+  notify from a closed web app, so alerts live here). Then the big **Owed to you** card
+  with aging, net-this-month, collected/spent/wages-owed/open-invoice stats, and
+  **Ready to bill**.
+* **Schedule tab** — set "Repeats" (weekly / every 2 or 4 weeks) + a "next visit" date on
+  any contract and its jobs generate automatically; add one-time jobs freely. Rolling
+  agenda (with month-calendar toggle), missed work pinned under "Catch up", and every
+  job has Done / Assign / Move / Skip. **✓ Done on mowing/plowing work logs the visit for
+  billing in the same tap.**
 * **Clients tab** — add clients (an optional contract form opens right after); tap a
   client to manage contracts. On per-visit contracts, tap **✓ Log visit today** each
-  time the work is done — 5 seconds in the driveway.
-* **Billing is semi-automatic** — the Home tab shows a **Ready to bill** section:
+  time the work is done — 5 seconds in the driveway. Contracts also carry
+  **"Usually done by"** so a crew member is assigned automatically every time.
+* **Crew tab** — add whoever helps out (default $/hr rate). Log shifts as hours × rate or
+  a flat amount; **Pay out** settles the shifts and books one Wages expense automatically.
+  Each member's card shows what he owes them and how many jobs they're on this week, and
+  their detail page lists **Their jobs** off the schedule.
+  *Note for Finlay: these are informal cash wages — worth advising him on CRA rules
+  (T4A/payroll thresholds) once helpers become regular.*
+* **Crew delegation (new in v2.0)** — assign any scheduled job to a crew member (per job,
+  or by default on the contract). Assigned jobs show that person's name on the schedule,
+  and marking one **✓ Done** opens a pre-filled sheet to log *their shift* — so delegation
+  feeds the wages he owes exactly the way Done already feeds billing. Reverting a Done
+  deletes the auto-logged shift unless it's already been paid out.
+* **Money tab** — three segments. **Invoices**: drafts to approve, manual invoices any
+  time (picking a contract pre-fills the price), payment recording; balances, status and
+  aging are always computed, never typed. **Quotes**: accepted quotes auto-create the
+  client + contract. **Insights**: monthly cash-flow bars, mowing-vs-plowing P&L including
+  labour, labour % of revenue, revenue per visit, quote win rate, and the **Hiring power**
+  what-if calculator (what a helper costs per month vs his real average profit, and how
+  many extra visits/week one must enable to break even).
+* **Billing is semi-automatic** — the Today tab shows a **Ready to bill** section:
   per-visit contracts are billed from actual logged visits once the month ends,
   monthly contracts suggest themselves on the 1st, seasonal/one-time contracts once
   they start. One tap creates a **draft** invoice; he reviews and hits
   **✓ Approve & send** in the Money tab (drafts never count in AR until approved).
   Suggestions can be dismissed with ✕ if something shouldn't be billed.
-* **Money tab** — drafts to approve, plus manual invoices any time (picking a contract
-  pre-fills the price) and payment recording. Balances, status, and overdue aging are
-  always computed, never typed.
 * **Expenses tab** — log every expense with a category and a *mowing / plowing / general*
-  tag. Set monthly or seasonal budget limits and watch actual-vs-budget bars.
-* **Schedule tab** — set "Repeats" (weekly / every 2 or 4 weeks) + a "next visit" date on
-  any contract and its jobs generate automatically; add one-time jobs freely. Rolling
-  agenda (with month-calendar toggle), missed work pinned under "Catch up", and every
-  job has Done / Move / Skip. **✓ Done on mowing/plowing work logs the visit for
-  billing in the same tap.**
-* **Crew (Clients tab → Crew)** — add whoever helps out (default $/hr rate). Log shifts
-  as hours × rate or a flat amount, optionally tied to the client worked on. The app
-  tracks what he OWES each person; **Pay out** settles the shifts and books one Wages
-  expense automatically. Home shows "You owe Kevin $140" until he does.
-  *Note for Finlay: these are informal cash wages — worth advising him on CRA rules
-  (T4A/payroll thresholds) once helpers become regular.*
-* **Business insights (Home tab)** — 📊 Insights: monthly cash flow, mowing vs plowing
-  P&L including labour, labour % of revenue, revenue per visit, quote win rate.
-  💪 Hiring power: what-if calculator showing what a helper costs per month vs his real
-  average profit, and how many extra visits/week one must enable to break even.
-* **Home tab** — the alert center: overdue invoices, contracts about to end, categories
-  over budget, and backup reminders. (iPhone can't show notifications from a closed web
-  app, so alerts appear here whenever he opens it.)
-* **Settings → Export data** (every week or two, and before any phone change):
-  shares a `dmc-export-YYYY-MM-DD.json` file to Finlay via AirDrop / email / OneDrive.
-  The same file is his backup — **Restore from file** reloads it completely.
+  tag. Set monthly or seasonal budget limits and watch actual-vs-budget bars. Mileage and
+  equipment logs live here too.
+* **Settings (gear, top-right) → Send to Finlay** (every week or two, and before any phone
+  change): builds a `dmc-export-YYYY-MM-DD.json` and opens the iOS share sheet — **nothing
+  leaves the phone until he picks a destination** (AirDrop / Messages / Mail / Save to
+  Files). That file is also his only backup, so he should keep a copy; **Restore from
+  file** reloads it completely.
 
-## 4. Updating the Excel workbook (Finlay)
+## 5. Updating the Excel workbook (Finlay)
 
 ```
 python scripts/import_to_excel.py path\to\dmc-export-2026-08-24.json
@@ -119,20 +137,40 @@ python scripts/import_to_excel.py path\to\dmc-export-2026-08-24.json
 | Budget vs Actual | Current period budget performance + expenses by category × month |
 | Clients / Contracts / Invoices / Payments / Visits / Expenses / Budgets | Raw merged data (the accounting dataset; Visits backs up every invoice with proof of work) |
 
-## 5. Shipping an app update (Finlay)
+## 6. Shipping an app update (Finlay)
 
 1. Edit the code in `app/`.
 2. Bump the version in **two places**: `VERSION` at the top of `app/sw.js` and
    `APP_VERSION` in `app/js/app.js`.
-3. Commit and push. Within a minute GitHub Pages serves the new version.
-4. Next time he opens the app online, he gets an **"Update available — Refresh"** toast.
-   His data is untouched by updates (it lives in IndexedDB, not in the app files).
+3. If you added a new JS module, add it to the `ASSETS` list in `app/sw.js` too, or it
+   won't be cached and the app breaks offline.
+4. Commit and push. Within 40–90 seconds GitHub Pages serves the new version.
+5. The update applies **automatically** next time he opens the app (no toast to tap), and
+   he sees a short "Updated to vX ✔" confirmation. **His data is untouched by updates** —
+   it lives in IndexedDB, which app updates never touch. Verified by
+   `tests/v2_data_survival_test.py`.
 
 ## Folder layout
 
 ```
-app/                    the PWA (deploy target)
+app/                         the PWA (deploy target)
+  index.html, sw.js, manifest, css/app.css, icons/
+  js/  app.js db.js models.js billing.js schedule.js insights.js
+       alerts.js messages.js export.js demo.js icons.js
+  js/views/  dashboard.js (Today) schedule.js jobrow.js clients.js
+             crew.js invoices.js (Money incl. Insights) expenses.js settings.js
 scripts/import_to_excel.py   JSON export → DMC_Books.xlsx
+scripts/serve.py             local dev server, no-cache, port 8765
+tests/                       Playwright + data-integrity suites (run before shipping)
+```
+
+## Tests (Finlay, before any release)
+
+```
+python scripts\serve.py                    # in one window, then:
+python tests\v2_test.py                    # 22-step end-to-end (needs Edge)
+python tests\v2_offline_test.py            # precache + fully-offline render
+python tests\v2_data_survival_test.py      # old data survives an update
 ```
 
 ## Safety notes

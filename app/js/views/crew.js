@@ -6,6 +6,7 @@ import { el, navigate, render, openModal, closeModal, field, textInput, numberIn
 import { put, remove } from '../db.js';
 import { newCrew, newShift, newExpense, touch, shiftAmount, crewOwed, money, fmtDate, today, round2, LINES } from '../models.js';
 import { jobsForCrew } from '../schedule.js';
+import { icon } from '../icons.js';
 
 let crewQ = '';
 const LIST_CAP = 200;
@@ -61,13 +62,13 @@ function renderCrewDetail(root, data, crewId) {
   root.append(el('div', { class: 'card detail-head' },
     el('h2', {}, member.name),
     el('div', { class: 'row-sub' }, [member.phone, member.defaultRate > 0 ? `${money(member.defaultRate)}/hr default` : ''].filter(Boolean).join(' · ')),
-    member.notes ? el('div', { class: 'row-sub' }, '📝 ' + member.notes) : null,
+    member.notes ? el('div', { class: 'row-sub' }, icon('note', 'ico-inline'), ' ' + member.notes) : null,
     el('div', { class: 'row', style: 'margin-top:10px' },
       el('div', { class: 'row-sub' }, 'You owe'),
       el('div', { class: 'row-amount' + (owed > 0 ? ' neg' : '') }, money(owed))),
     el('div', { class: 'btn-row' },
       el('button', { class: 'btn small', onclick: () => shiftForm(member, data) }, '+ Log shift'),
-      owed > 0 ? el('button', { class: 'btn secondary small', onclick: () => payOutModal(member, data) }, '💵 Pay out') : null,
+      owed > 0 ? el('button', { class: 'btn secondary small', onclick: () => payOutModal(member, data) }, icon('cash', 'ico-inline'), ' Pay out') : null,
       el('button', { class: 'btn subtle small', onclick: () => crewForm(member) }, 'Edit'),
       el('button', { class: 'btn subtle small', onclick: () => deleteCrew(member, data) }, 'Delete'))));
 

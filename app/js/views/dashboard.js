@@ -7,6 +7,7 @@ import { computeAlerts } from '../alerts.js';
 import { billingSuggestions, suggestionKey } from '../billing.js';
 import { agenda, catchUp } from '../schedule.js';
 import { jobRow } from './jobrow.js';
+import { icon } from '../icons.js';
 
 const JOBS_CAP = 5;
 const ALERTS_CAP = 5;
@@ -31,7 +32,7 @@ export async function renderDashboard(root, data, { lastExportAt }) {
   root.append(el('div', { class: 'section-label' }, 'Today'));
   if (missed.length) {
     root.append(el('div', { class: 'alert warn', onclick: () => navigate('schedule') },
-      el('span', { class: 'a-icon' }, '⏰'),
+      el('span', { class: 'a-icon' }, icon('clock')),
       el('span', {}, `${missed.length} missed job${missed.length > 1 ? 's' : ''} to catch up on ›`)));
   }
   if (jobs.length === 0) {
@@ -54,15 +55,15 @@ export async function renderDashboard(root, data, { lastExportAt }) {
   root.append(el('div', { class: 'section-label' }, 'Needs attention'));
   if (alerts.length === 0) {
     root.append(el('div', { class: 'card' },
-      el('div', { class: 'row-sub' }, '✅ All clear — nothing overdue, nothing over budget.')));
+      el('div', { class: 'row-sub' }, 'All clear — nothing overdue, nothing over budget.')));
   } else {
     for (const a of alerts.slice(0, ALERTS_CAP)) {
       root.append(el('div', { class: `alert ${a.level}`, onclick: () => navigate(a.view, a.params || {}) },
-        el('span', { class: 'a-icon' }, a.icon), el('span', {}, a.text)));
+        el('span', { class: 'a-icon' }, icon(a.icon)), el('span', {}, a.text)));
     }
     if (alerts.length > ALERTS_CAP) {
       root.append(el('div', { class: 'alert info', onclick: () => navigate('invoices') },
-        el('span', { class: 'a-icon' }, '➕'),
+        el('span', { class: 'a-icon' }, icon('plus')),
         el('span', {}, `…and ${alerts.length - ALERTS_CAP} more — the Money tab's Overdue filter has the full list.`)));
     }
   }
@@ -121,7 +122,7 @@ export async function renderDashboard(root, data, { lastExportAt }) {
   root.append(el('div', { class: 'card tappable', onclick: () => navigate('invoices', { mode: 'insights' }) },
     el('div', { class: 'row' },
       el('div', { class: 'row-main' },
-        el('div', { class: 'row-title' }, '📊 Insights'),
+        el('div', { class: 'row-title' }, icon('chart', 'ico-inline'), ' Insights'),
         el('div', { class: 'row-sub' }, 'Profit, mowing vs plowing, labour cost, hiring power')),
       el('span', { class: 'row-sub' }, '›'))));
 

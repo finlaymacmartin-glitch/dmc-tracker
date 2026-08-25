@@ -1,7 +1,7 @@
 // Service worker: precache the app shell for full offline use.
 // Bump VERSION on every deploy — updates then apply AUTOMATICALLY on next load (no user action).
 
-const VERSION = '2.0.3';
+const VERSION = '2.0.0';
 const CACHE = 'dmc-' + VERSION;
 
 const ASSETS = [
@@ -13,6 +13,7 @@ const ASSETS = [
   'js/db.js',
   'js/models.js',
   'js/alerts.js',
+  'js/icons.js',
   'js/billing.js',
   'js/messages.js',
   'js/insights.js',

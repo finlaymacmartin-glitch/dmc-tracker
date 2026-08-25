@@ -18,7 +18,7 @@ export function computeAlerts(data, lastExportAt) {
   for (const { inv, st } of overdue) {
     const who = clientById[inv.clientId]?.name || 'Unknown client';
     alerts.push({
-      level: 'danger', icon: '⚠️', view: 'invoices',
+      level: 'danger', icon: 'warning', view: 'invoices',
       text: `${who} owes ${money(st.balance)} on ${inv.number || 'an invoice'} — ${st.daysPastDue} days overdue`,
     });
   }
@@ -30,7 +30,7 @@ export function computeAlerts(data, lastExportAt) {
     if (daysLeft >= 0 && daysLeft <= 30) {
       const who = clientById[c.clientId]?.name || 'Unknown client';
       alerts.push({
-        level: 'info', icon: '📅', view: 'clients',
+        level: 'info', icon: 'calendar', view: 'clients',
         text: `${who}'s ${c.service} contract ends ${daysLeft === 0 ? 'today' : `in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`} — time to renew?`,
       });
     }
@@ -44,12 +44,12 @@ export function computeAlerts(data, lastExportAt) {
     const pct = actual / Number(b.limit);
     if (pct >= 1) {
       alerts.push({
-        level: 'warn', icon: '💸', view: 'expenses',
+        level: 'warn', icon: 'spend', view: 'expenses',
         text: `${b.category} is over budget: ${money(actual)} spent of ${money(b.limit)} (${b.period})`,
       });
     } else if (pct >= 0.9) {
       alerts.push({
-        level: 'warn', icon: '💸', view: 'expenses',
+        level: 'warn', icon: 'spend', view: 'expenses',
         text: `${b.category} is at ${Math.round(pct * 100)}% of its ${b.period} budget`,
       });
     }
@@ -61,7 +61,7 @@ export function computeAlerts(data, lastExportAt) {
     if (owed > 0) {
       const n = (data.shifts || []).filter(s => s.crewId === c.id && !s.paid).length;
       alerts.push({
-        level: 'warn', icon: '💵', view: 'crew', params: { crewId: c.id },
+        level: 'warn', icon: 'cash', view: 'crew', params: { crewId: c.id },
         text: `You owe ${c.name} ${money(owed)} (${n} shift${n > 1 ? 's' : ''}) — open Crew to pay out`,
       });
     }
@@ -72,14 +72,14 @@ export function computeAlerts(data, lastExportAt) {
   if (hasData) {
     if (!lastExportAt) {
       alerts.push({
-        level: 'info', icon: '💾', view: 'settings',
+        level: 'info', icon: 'save', view: 'settings',
         text: 'No backup yet — export your data from Settings so nothing is ever lost.',
       });
     } else {
       const days = daysBetween(lastExportAt.slice(0, 10), today());
       if (days > 30) {
         alerts.push({
-          level: 'info', icon: '💾', view: 'settings',
+          level: 'info', icon: 'save', view: 'settings',
           text: `Last backup was ${days} days ago — export your data from Settings.`,
         });
       }

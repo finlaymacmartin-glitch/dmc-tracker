@@ -12,6 +12,7 @@ import {
 } from '../models.js';
 import { getBusiness, paymentRequestText, reviewRequestText, shareText } from '../messages.js';
 import { monthlyPnl, linePnl, labourStats, opsStats, hiringPower, defaultWageRate } from '../insights.js';
+import { icon } from '../icons.js';
 
 let filter = 'open';
 let moneyMode = 'invoices'; // 'invoices' | 'quotes' | 'insights'
@@ -164,7 +165,7 @@ export function renderInsights(root, data) {
     'Cash basis: money in = payments received, money out = expenses (paid wages included).'));
 
   // ---- hiring power (live what-if, inline — inputs redraw only the output box) ----
-  root.append(el('div', { class: 'section-label' }, '💪 Hiring power'));
+  root.append(el('div', { class: 'section-label' }, icon('trendUp', 'ico-inline'), ' Hiring power'));
   root.append(el('div', { class: 'row-sub', style: 'margin-bottom:10px' },
     'What would hiring a helper do to your numbers? Adjust and see.'));
   const rateIn = numberInput('rate', defaultWageRate(data.crew));
@@ -187,7 +188,7 @@ export function renderInsights(root, data) {
         ? `Your current profit covers ${hp.affordable} helper${hp.affordable > 1 ? 's' : ''} at these hours without any new work.`
         : 'Current profit doesn’t fully cover a helper at these hours — they’d need to help you take on more work.';
     out.append(el('div', { class: `alert ${hp.avgNet > 0 && hp.affordable >= 1 ? 'info' : 'warn'}`, style: 'cursor:default' },
-      el('span', { class: 'a-icon' }, hp.avgNet > 0 && hp.affordable >= 1 ? '✅' : '⚠️'),
+      el('span', { class: 'a-icon' }, icon(hp.avgNet > 0 && hp.affordable >= 1 ? 'check' : 'warning')),
       el('span', {}, verdictText)));
     if (hp.breakEvenVisitsPerWeek !== null) {
       const basisText = hp.avgPerVisitBasis === 'billed'
@@ -223,7 +224,7 @@ function quoteActions(q, data) {
     el('div', { class: 'row-sub' }, `${quoteName(q, data.clients)} — ${cap(q.service)}`),
     el('div', { class: 'row-sub' }, `${money(q.price)} ${BILLING_LABELS[q.billing] || q.billing}${q.frequency ? ' · ' + q.frequency : ''}`),
     q.description ? el('div', { class: 'row-sub' }, q.description) : null,
-    q.notes ? el('div', { class: 'row-sub' }, '📝 ' + q.notes) : null,
+    q.notes ? el('div', { class: 'row-sub' }, icon('note', 'ico-inline'), ' ' + q.notes) : null,
     el('div', { class: 'row-sub', style: 'margin-bottom:12px' }, `Sent ${fmtDate(q.dateIssued)}${q.expiryDate ? ' · expires ' + fmtDate(q.expiryDate) : ''}`),
   ];
   if (st === 'open' || st === 'expired') {
@@ -323,7 +324,7 @@ function renderInvoiceDetail(root, data, invoiceId) {
     el('div', { class: 'row-sub' }, client ? client.name : 'Unknown client'),
     contract ? el('div', { class: 'row-sub' }, `Contract: ${contract.service} — ${contract.description || money(contract.price) + ' ' + (BILLING_LABELS[contract.billing] || contract.billing)}`) : null,
     el('div', { class: 'row-sub' }, `Issued ${fmtDate(inv.dateIssued)}${inv.dueDate ? ' · due ' + fmtDate(inv.dueDate) : ''}`),
-    inv.notes ? el('div', { class: 'row-sub' }, '📝 ' + inv.notes) : null,
+    inv.notes ? el('div', { class: 'row-sub' }, icon('note', 'ico-inline'), ' ' + inv.notes) : null,
     el('div', { class: 'row', style: 'margin-top:10px' }, el('div', { class: 'row-sub' }, 'Invoice total'), el('div', { class: 'row-amount' }, money(inv.amount))),
     el('div', { class: 'row' }, el('div', { class: 'row-sub' }, 'Paid'), el('div', { class: 'row-amount' }, money(st.paid))),
     el('div', { class: 'row' }, el('div', { class: 'row-sub' }, 'Balance'), el('div', { class: 'row-amount' + (st.balance > 0 ? ' neg' : '') }, money(st.balance))),
@@ -345,7 +346,7 @@ function renderInvoiceDetail(root, data, invoiceId) {
           if (result === 'shared') toast('Share sheet opened ✔');
           else if (result === 'copied') toast('Message copied — paste it into a text');
         }
-      }, '💬 Request payment') : null,
+      }, icon('message', 'ico-inline'), ' Request payment') : null,
       st.status === 'overdue' ? el('button', { class: 'btn secondary small', onclick: () => lateFeeForm(inv, st) }, '+ Late fee') : null,
       st.status === 'paid' && client ? el('button', {
         class: 'btn secondary small', onclick: async () => {
@@ -353,7 +354,7 @@ function renderInvoiceDetail(root, data, invoiceId) {
           if (result === 'shared') toast('Share sheet opened ✔');
           else if (result === 'copied') toast('Message copied — paste it into a text');
         }
-      }, '⭐ Ask for review') : null)));
+      }, icon('star', 'ico-inline'), ' Ask for review') : null)));
 
   root.append(el('div', { class: 'section-label' }, 'Payments'));
   const pays = data.payments.filter(p => p.invoiceId === inv.id).sort((a, b) => (b.date || '').localeCompare(a.date || ''));

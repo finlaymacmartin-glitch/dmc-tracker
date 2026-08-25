@@ -9,7 +9,7 @@ import { renderInvoices } from './views/invoices.js';
 import { renderExpenses } from './views/expenses.js';
 import { renderSettings } from './views/settings.js';
 
-export const APP_VERSION = '2.0.3';
+export const APP_VERSION = '2.0.0';
 const BRAND = 'Delisle Mowing';
 
 const VIEWS = {

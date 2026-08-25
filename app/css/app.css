@@ -392,10 +392,29 @@ input.search::placeholder { color: #6d7a72; }
 .job-done-btn { min-height: 52px; font-size: 1rem; }
 .chip.assignee { background: var(--green-soft); color: var(--green-deep); margin-left: 8px; vertical-align: 2px; }
 
+/* ---------- v2: icons ---------- */
+.ico { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.85;
+       stroke-linecap: round; stroke-linejoin: round; flex: none; display: block; }
+.ico-inline { width: 17px; height: 17px; display: inline-block; vertical-align: -3px; margin-right: 1px; }
+/* keep icon+label on one line in the small action buttons; whole buttons wrap instead */
+.btn.small { white-space: nowrap; }
+.btn.small .ico-inline { width: 15px; height: 15px; }
+.alert .a-icon { display: flex; align-items: center; }
+.alert.danger .a-icon { color: var(--danger); }
+.alert.warn .a-icon { color: var(--warn); }
+.alert.info .a-icon { color: var(--green); }
+.row-sub .ico-inline { opacity: 0.8; }
+
 /* ---------- v2: personality ---------- */
 /* section labels get a brand tick so sections read as sections, not gray text */
 .section-label { display: flex; align-items: center; gap: 7px; }
 .section-label::before { content: ''; width: 4px; height: 11px; border-radius: 2px; background: var(--green); flex: none; }
+/* grouping: separate SECTIONS far more than the ITEMS inside them */
+.section-label { margin: 30px 2px 9px; }
+.section-label:first-child { margin-top: 4px; }
+.card, .empty { margin-bottom: 7px; }
+.alert { margin-bottom: 6px; }
+.stat-grid { margin-bottom: 2px; }
 /* hero number gets real display weight */
 .hero-value { font-size: 2.4rem; font-weight: 850; letter-spacing: -0.03em; }
 .stat.hero .value { font-size: 1.9rem; font-weight: 800; }

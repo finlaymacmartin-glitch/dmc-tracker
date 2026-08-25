@@ -5,6 +5,7 @@ import { put, remove, getAll } from '../db.js';
 import { newClient, newContract, newVisit, touch, clientBalance, invoiceState, money, fmtDate, SERVICES, BILLING_TYPES, BILLING_LABELS, REPEAT_LABELS } from '../models.js';
 import { unbilledVisits } from '../billing.js';
 import { onMyWayText, shareText } from '../messages.js';
+import { icon } from '../icons.js';
 
 let clientQ = '';
 const LIST_CAP = 200;
@@ -61,7 +62,7 @@ function renderClientDetail(root, data, clientId) {
     el('h2', {}, client.name),
     el('div', { class: 'row-sub' }, [client.phone, client.email].filter(Boolean).join(' · ')),
     client.address ? el('div', { class: 'row-sub' }, client.address) : null,
-    client.notes ? el('div', { class: 'row-sub' }, '📝 ' + client.notes) : null,
+    client.notes ? el('div', { class: 'row-sub' }, icon('note', 'ico-inline'), ' ' + client.notes) : null,
     el('div', { class: 'row', style: 'margin-top:10px' },
       el('div', { class: 'row-sub' }, 'Balance owed'),
       el('div', { class: 'row-amount' + (balance > 0 ? ' neg' : '') }, money(balance))),
@@ -72,8 +73,8 @@ function renderClientDetail(root, data, clientId) {
           if (result === 'shared') toast('Share sheet opened ✔');
           else if (result === 'copied') toast('Message copied — paste it into a text');
         }
-      }, '🚗 On my way'),
-      el('button', { class: 'btn secondary small', onclick: () => statementModal(client, data) }, '🧾 Statement'),
+      }, icon('truck', 'ico-inline'), ' On my way'),
+      el('button', { class: 'btn secondary small', onclick: () => statementModal(client, data) }, icon('receipt', 'ico-inline'), ' Statement'),
       el('button', { class: 'btn subtle small', onclick: () => clientForm(client, data) }, 'Edit'),
       el('button', { class: 'btn subtle small', onclick: () => deleteClient(client, data) }, 'Delete'))));
 
@@ -173,7 +174,7 @@ function statementModal(client, data) {
     statement,
     el('div', { class: 'btn-row no-print' },
       el('button', { class: 'btn subtle', onclick: closeModal }, 'Close'),
-      el('button', { class: 'btn', onclick: () => window.print() }, '🖨 Print / Save PDF')),
+      el('button', { class: 'btn', onclick: () => window.print() }, icon('printer', 'ico-inline'), ' Print / Save PDF')),
   ]);
 }
 
