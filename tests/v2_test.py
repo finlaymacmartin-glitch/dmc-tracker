@@ -112,7 +112,7 @@ def run(pw):
     page.click('.tab[data-view="dashboard"]')
     # the delegated (chip-bearing) job we marked Done in step 4 — its button is the revert
     done_row = page.locator("#view .card", has=page.locator(".chip.assignee")).first
-    done_row.get_by_role("button", name=re.compile("✓ done", re.I)).click()
+    done_row.get_by_role("button", name=re.compile("is done", re.I)).click()
     page.wait_for_timeout(600)
     shifts_after = page.evaluate(
         """() => new Promise(res => { const r = indexedDB.open('dmc-db');

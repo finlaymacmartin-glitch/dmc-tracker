@@ -14,20 +14,24 @@ export function jobRow(e, data, late = false) {
     e.client && e.job?.note ? e.job.note : '',
     late ? `was ${fmtDate(e.date)}` : '',
   ].filter(Boolean);
-  const card = el('div', { class: 'card' },
+  const done = e.status === 'done';
+  // One big obvious tap target per job: the circle IS "yes, this one's done".
+  const tick = el('button', {
+    class: 'tick' + (done ? ' on' : ''),
+    'aria-label': done ? `${name} is done — tap to undo` : `Mark ${name} done`,
+    onclick: () => (done ? revertDone(e, data) : markDone(e, data)),
+  });
+  tick.append(el('span', { class: 'tick-mark' }, '✓'));
+
+  const card = el('div', { class: 'card job-card' + (done ? ' is-done' : '') },
     el('div', { class: 'row' },
+      tick,
       el('div', { class: 'row-main' },
         el('div', { class: 'row-title' }, name,
           assignee ? el('span', { class: 'chip assignee' }, firstName(assignee.name)) : null),
-        el('div', { class: 'row-sub' }, subBits.join(' · ') || '—')),
-      e.status === 'done'
-        ? el('button', {
-            class: 'btn subtle small', onclick: () => revertDone(e, data)
-          }, '✓ done')
-        : null));
-  if (e.status !== 'done') {
-    card.append(el('div', { class: 'btn-row' },
-      el('button', { class: 'btn small job-done-btn', onclick: () => markDone(e, data) }, '✓ Done'),
+        el('div', { class: 'row-sub' }, subBits.join(' · ') || '—'))));
+  if (!done) {
+    card.append(el('div', { class: 'btn-row job-more' },
       data.crew.some(c => c.status !== 'inactive')
         ? el('button', { class: 'btn subtle small', onclick: () => assignForm(e, data) }, assignee ? 'Reassign' : 'Assign')
         : null,

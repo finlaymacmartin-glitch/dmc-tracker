@@ -388,8 +388,24 @@ input.search::placeholder { color: #6d7a72; }
 .stat-hero-row { grid-template-columns: 1fr; margin-bottom: 10px; }
 .stat.hero .value { font-size: 1.8rem; }
 
-/* ---------- v2: big Done + assignee chip ---------- */
-.job-done-btn { min-height: 52px; font-size: 1rem; }
+/* ---------- v2: per-job tick circle (the obvious "this one's done") ---------- */
+.tick {
+  width: 48px; height: 48px; flex: none; border-radius: 50%; cursor: pointer;
+  border: 2.5px solid var(--border-strong); background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 120ms var(--ease-out), background 120ms var(--ease-out),
+              border-color 120ms var(--ease-out);
+}
+.tick .tick-mark { font-size: 1.5rem; line-height: 1; color: var(--border-strong); font-weight: 700; }
+.tick:active { transform: scale(0.9); }
+.tick.on { background: var(--green); border-color: var(--green); }
+.tick.on .tick-mark { color: #fff; }
+.job-card .row { gap: 14px; }
+.job-card.is-done .row-title, .job-card.is-done .row-sub { color: var(--muted); }
+.job-card.is-done .row-title { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+/* secondary actions step back so the circle is clearly the main move */
+.job-more { margin-top: 8px; padding-left: 62px; }
+.job-more .btn.small { font-size: 0.8rem; padding: 7px 11px; min-height: 36px; }
 .chip.assignee { background: var(--green-soft); color: var(--green-deep); margin-left: 8px; vertical-align: 2px; }
 
 /* ---------- v2: icons ---------- */
