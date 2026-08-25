@@ -22,16 +22,10 @@ export function sendSheet(title, client, text, subject = 'Delisle Mowing') {
   ];
 
   if (phone) {
-    body.push(opt('message', 'Text message', phone, () => {
-      window.location.href = smsLink(phone, text);
-      closeModal();
-    }));
+    body.push(opt('message', 'Text message', phone, () => handoff(smsLink(phone, text), text, 'Messages')));
   }
   if (email) {
-    body.push(opt('mail', 'Email', email, () => {
-      window.location.href = emailLink(email, subject, text);
-      closeModal();
-    }));
+    body.push(opt('mail', 'Email', email, () => handoff(emailLink(email, subject, text), text, 'Mail')));
   }
   if (!phone && !email) {
     body.push(el('div', { class: 'row-sub', style: 'margin-bottom:10px' },
@@ -50,4 +44,25 @@ export function sendSheet(title, client, text, subject = 'Delisle Mowing') {
   }));
 
   openModal(title, body);
+}
+
+// Hand off to Messages/Mail. On a phone the app takes over and this page goes
+// hidden. On a desktop with no handler nothing happens at all — so if we're still
+// here a moment later, copy the text and say so rather than looking broken.
+function handoff(link, text, appName) {
+  let left = false;
+  const gone = () => { left = true; };
+  document.addEventListener('visibilitychange', gone, { once: true });
+  window.addEventListener('pagehide', gone, { once: true });
+  window.location.href = link;
+  closeModal();
+  setTimeout(async () => {
+    document.removeEventListener('visibilitychange', gone);
+    window.removeEventListener('pagehide', gone);
+    if (left || document.visibilityState === 'hidden') return; // the app opened — nothing to say
+    const copied = await copyText(text) === 'copied';
+    toast(copied
+      ? `No ${appName} app on this device — copied instead. On your iPhone this opens ${appName}.`
+      : `This device can’t open ${appName}. On your iPhone it opens ${appName}, message ready.`);
+  }, 1200);
 }
