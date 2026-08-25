@@ -1,8 +1,8 @@
 // IndexedDB layer — no dependencies. All business data lives here, on-device only.
 
 const DB_NAME = 'dmc-db';
-const DB_VERSION = 4; // v2: +visits; v3: +quotes, mileage, equipment; v4: +crew, shifts
-export const STORES = ['clients', 'contracts', 'invoices', 'payments', 'expenses', 'budgets', 'visits', 'quotes', 'mileage', 'equipment', 'crew', 'shifts', 'meta'];
+const DB_VERSION = 5; // v2: +visits; v3: +quotes, mileage, equipment; v4: +crew, shifts; v5: +jobs
+export const STORES = ['clients', 'contracts', 'invoices', 'payments', 'expenses', 'budgets', 'visits', 'quotes', 'mileage', 'equipment', 'crew', 'shifts', 'jobs', 'meta'];
 
 let dbPromise = null;
 
@@ -77,10 +77,10 @@ export function setMeta(key, value) {
 // Load everything at once — the dataset for a one-man business stays tiny,
 // so views just recompute from a full in-memory snapshot.
 export async function loadAll() {
-  const [clients, contracts, invoices, payments, expenses, budgets, visits, quotes, mileage, equipment, crew, shifts] = await Promise.all([
+  const [clients, contracts, invoices, payments, expenses, budgets, visits, quotes, mileage, equipment, crew, shifts, jobs] = await Promise.all([
     getAll('clients'), getAll('contracts'), getAll('invoices'),
     getAll('payments'), getAll('expenses'), getAll('budgets'), getAll('visits'),
-    getAll('quotes'), getAll('mileage'), getAll('equipment'), getAll('crew'), getAll('shifts'),
+    getAll('quotes'), getAll('mileage'), getAll('equipment'), getAll('crew'), getAll('shifts'), getAll('jobs'),
   ]);
-  return { clients, contracts, invoices, payments, expenses, budgets, visits, quotes, mileage, equipment, crew, shifts };
+  return { clients, contracts, invoices, payments, expenses, budgets, visits, quotes, mileage, equipment, crew, shifts, jobs };
 }

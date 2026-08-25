@@ -2,7 +2,7 @@
 
 import { el, navigate, render, openModal, closeModal, field, textInput, numberInput, dateInput, select, formValues, searchBox, toast, confirmAction } from '../app.js';
 import { put, remove, getAll } from '../db.js';
-import { newClient, newContract, newVisit, newCrew, newShift, newExpense, touch, clientBalance, invoiceState, shiftAmount, crewOwed, money, fmtDate, today, round2, SERVICES, BILLING_TYPES, BILLING_LABELS, LINES } from '../models.js';
+import { newClient, newContract, newVisit, newCrew, newShift, newExpense, touch, clientBalance, invoiceState, shiftAmount, crewOwed, money, fmtDate, today, round2, SERVICES, BILLING_TYPES, BILLING_LABELS, REPEAT_LABELS, LINES } from '../models.js';
 import { unbilledVisits } from '../billing.js';
 import { onMyWayText, shareText } from '../messages.js';
 
@@ -419,6 +419,9 @@ function clientForm(existing) {
       field('Billing', select('billing', BILLING_TYPES, 'per-visit')),
       field('Frequency', textInput('frequency', '', { placeholder: 'e.g. weekly' }))),
     el('div', { class: 'field-pair' },
+      field('Repeats (schedule)', select('repeat', Object.entries(REPEAT_LABELS), 'none')),
+      field('Next visit', dateInput('nextDate', ''))),
+    el('div', { class: 'field-pair' },
       field('Start date', dateInput('startDate', '')),
       field('End date', dateInput('endDate', ''))),
   ];
@@ -439,6 +442,7 @@ function clientForm(existing) {
       await put('contracts', newContract({
         clientId: saved.id, service: v.service, price: Number(v.price),
         billing: v.billing, frequency: v.frequency, startDate: v.startDate, endDate: v.endDate,
+        repeat: v.repeat || 'none', nextDate: v.nextDate || '',
       }));
       msg = 'Client + contract added ✔';
     }
@@ -461,6 +465,7 @@ async function deleteClient(client, data) {
   for (const i of data.invoices.filter(i => i.clientId === client.id)) await remove('invoices', i.id);
   for (const p of data.payments.filter(p => p.clientId === client.id)) await remove('payments', p.id);
   for (const v of data.visits.filter(v => v.clientId === client.id)) await remove('visits', v.id);
+  for (const j of data.jobs.filter(j => j.clientId === client.id)) await remove('jobs', j.id);
   await remove('clients', client.id);
   toast('Client deleted');
   navigate('clients');
@@ -476,6 +481,9 @@ function contractForm(existing, client) {
       field('Billing', select('billing', BILLING_TYPES, k.billing))),
     field('Frequency', textInput('frequency', k.frequency, { placeholder: 'e.g. weekly, per snowfall' })),
     el('div', { class: 'field-pair' },
+      field('Repeats (schedule)', select('repeat', Object.entries(REPEAT_LABELS), k.repeat || 'none')),
+      field('Next visit', dateInput('nextDate', k.nextDate))),
+    el('div', { class: 'field-pair' },
       field('Start date', dateInput('startDate', k.startDate)),
       field('End date', dateInput('endDate', k.endDate))),
     field('Status', select('status', ['active', 'ended'], k.status)),
@@ -485,8 +493,9 @@ function contractForm(existing, client) {
       el('button', { class: 'btn', type: 'submit' }, existing ? 'Save' : 'Add contract')),
     existing ? el('button', {
       class: 'link-danger', type: 'button', onclick: async () => {
-        if (!confirmAction('Delete this contract? Its logged visits are deleted too.')) return;
+        if (!confirmAction('Delete this contract? Its logged visits and scheduled jobs are deleted too.')) return;
         for (const v of (await getAll('visits')).filter(v => v.contractId === k.id)) await remove('visits', v.id);
+        for (const j of (await getAll('jobs')).filter(j => j.contractId === k.id)) await remove('jobs', j.id);
         await remove('contracts', k.id);
         closeModal(); toast('Contract deleted'); render();
       }

@@ -75,6 +75,11 @@ pip install openpyxl
   always computed, never typed.
 * **Expenses tab** — log every expense with a category and a *mowing / plowing / general*
   tag. Set monthly or seasonal budget limits and watch actual-vs-budget bars.
+* **Schedule tab** — set "Repeats" (weekly / every 2 or 4 weeks) + a "next visit" date on
+  any contract and its jobs generate automatically; add one-time jobs freely. Rolling
+  agenda (with month-calendar toggle), missed work pinned under "Catch up", and every
+  job has Done / Move / Skip. **✓ Done on mowing/plowing work logs the visit for
+  billing in the same tap.**
 * **Crew (Clients tab → Crew)** — add whoever helps out (default $/hr rate). Log shifts
   as hours × rate or a flat amount, optionally tied to the client worked on. The app
   tracks what he OWES each person; **Pay out** settles the shifts and books one Wages

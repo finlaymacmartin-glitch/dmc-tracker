@@ -42,7 +42,8 @@ RAW_SHEETS = [
     ("Contracts", "contracts", [
         ("ID", "id"), ("Client ID", "clientId"), ("Service", "service"),
         ("Description", "description"), ("Price", "price"), ("Billing", "billing"),
-        ("Frequency", "frequency"), ("Start Date", "startDate"), ("End Date", "endDate"),
+        ("Frequency", "frequency"), ("Repeat", "repeat"), ("Next Date", "nextDate"),
+        ("Start Date", "startDate"), ("End Date", "endDate"),
         ("Status", "status"), ("Notes", "notes"), ("Updated At", "updatedAt"),
     ]),
     ("Invoices", "invoices", [
@@ -58,6 +59,10 @@ RAW_SHEETS = [
     ("Visits", "visits", [
         ("ID", "id"), ("Contract ID", "contractId"), ("Client ID", "clientId"),
         ("Date", "date"), ("Note", "note"), ("Invoice ID", "invoiceId"), ("Updated At", "updatedAt"),
+    ]),
+    ("Jobs", "jobs", [
+        ("ID", "id"), ("Date", "date"), ("Client ID", "clientId"), ("Contract ID", "contractId"),
+        ("Note", "note"), ("Status", "status"), ("Orig Date", "origDate"), ("Updated At", "updatedAt"),
     ]),
     ("Expenses", "expenses", [
         ("ID", "id"), ("Date", "date"), ("Amount", "amount"), ("Category", "category"),

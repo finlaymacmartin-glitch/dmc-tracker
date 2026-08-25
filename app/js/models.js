@@ -21,8 +21,11 @@ export const uuid = () => crypto.randomUUID();
 export function newClient(d = {}) {
   return { id: uuid(), name: '', phone: '', email: '', address: '', notes: '', createdAt: now(), updatedAt: now(), ...d };
 }
+export const REPEAT_LABELS = { none: 'Does not repeat', weekly: 'Every week', biweekly: 'Every 2 weeks', every4weeks: 'Every 4 weeks' };
+export const REPEAT_DAYS = { weekly: 7, biweekly: 14, every4weeks: 28 };
+
 export function newContract(d = {}) {
-  return { id: uuid(), clientId: '', service: 'mowing', description: '', price: 0, billing: 'per-visit', frequency: '', startDate: '', endDate: '', status: 'active', notes: '', createdAt: now(), updatedAt: now(), ...d };
+  return { id: uuid(), clientId: '', service: 'mowing', description: '', price: 0, billing: 'per-visit', frequency: '', startDate: '', endDate: '', repeat: 'none', nextDate: '', status: 'active', notes: '', createdAt: now(), updatedAt: now(), ...d };
 }
 export function newInvoice(d = {}) {
   return { id: uuid(), number: '', clientId: '', contractId: '', dateIssued: today(), dueDate: '', amount: 0, status: 'sent', notes: '', createdAt: now(), updatedAt: now(), ...d };
@@ -49,6 +52,9 @@ export function newEquipment(d = {}) {
   return { id: uuid(), name: '', purchaseDate: today(), cost: 0, line: 'general', lastServiceDate: '', serviceNotes: '', notes: '', createdAt: now(), updatedAt: now(), ...d };
 }
 
+export function newJob(d = {}) {
+  return { id: uuid(), date: today(), clientId: '', contractId: '', note: '', status: 'planned', origDate: '', createdAt: now(), updatedAt: now(), ...d };
+}
 export function newCrew(d = {}) {
   return { id: uuid(), name: '', phone: '', defaultRate: 0, notes: '', status: 'active', createdAt: now(), updatedAt: now(), ...d };
 }

@@ -317,6 +317,25 @@ input.search::placeholder { color: #6d7a72; }
 }
 .link-danger { color: var(--danger); background: none; border: none; font-size: 0.85rem; font-weight: 650; cursor: pointer; padding: 12px 0 4px; }
 
+/* ---------- month calendar ---------- */
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cal-title { font-weight: 750; font-size: 1rem; color: var(--ink); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 6px; }
+.cal-dow { text-align: center; font-size: 0.66rem; font-weight: 700; color: var(--muted); padding: 4px 0; }
+.cal-day {
+  position: relative; aspect-ratio: 1; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text); font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 120ms var(--ease-out);
+}
+.cal-day.now { border-color: var(--green); border-width: 2px; }
+.cal-day.sel { background: var(--green); border-color: var(--green); color: #fff; }
+.cal-day .dot {
+  position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);
+  width: 5px; height: 5px; border-radius: 50%; background: var(--green);
+}
+.cal-day.sel .dot { background: #fff; }
+
 /* ---------- statement ---------- */
 .statement { color: var(--ink); }
 .stmt-head { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }

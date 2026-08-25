@@ -5,6 +5,7 @@ import { put, getMeta, setMeta } from '../db.js';
 import { agingBuckets, invoiceState, money, fmtMonth, monthKey, today, newInvoice, nextInvoiceNumber, addDays, touch } from '../models.js';
 import { computeAlerts } from '../alerts.js';
 import { billingSuggestions, suggestionKey } from '../billing.js';
+import { todayStats } from '../schedule.js';
 import { monthlyPnl, linePnl, labourStats, opsStats, hiringPower, defaultWageRate } from '../insights.js';
 
 export async function renderDashboard(root, data, { lastExportAt }) {
@@ -36,6 +37,17 @@ export async function renderDashboard(root, data, { lastExportAt }) {
         el('span', {}, `…and ${alerts.length - 8} more — the Money tab's Overdue filter has the full list.`)));
     }
   }
+
+  // ---- today's jobs ----
+  const ts = todayStats(data);
+  root.append(el('div', { class: 'card tappable', onclick: () => navigate('schedule') },
+    el('div', { class: 'row' },
+      el('div', { class: 'row-main' },
+        el('div', { class: 'row-title' }, '📅 Today'),
+        el('div', { class: 'row-sub' }, ts.total === 0
+          ? 'No jobs scheduled — open Schedule to plan the week'
+          : `${ts.total} job${ts.total > 1 ? 's' : ''} · ${ts.done} done`)),
+      el('span', { class: 'row-sub' }, '›'))));
 
   // ---- ready to bill ----
   const dismissed = (await getMeta('dismissedBilling')) || {};

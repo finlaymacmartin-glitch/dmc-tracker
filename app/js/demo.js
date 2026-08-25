@@ -5,7 +5,7 @@
 import { bulkPut } from './db.js';
 import {
   newClient, newContract, newInvoice, newPayment, newExpense, newBudget,
-  newVisit, newQuote, newMileage, newEquipment, newCrew, newShift,
+  newVisit, newQuote, newMileage, newEquipment, newCrew, newShift, newJob,
 } from './models.js';
 
 function d(daysAgo) {
@@ -16,7 +16,7 @@ function d(daysAgo) {
 
 export async function loadDemoData() {
   const clients = [], contracts = [], invoices = [], payments = [], expenses = [],
-    budgets = [], visits = [], quotes = [], mileage = [], equipment = [], crew = [], shifts = [];
+    budgets = [], visits = [], quotes = [], mileage = [], equipment = [], crew = [], shifts = [], jobs = [];
 
   const client = (name, phone, address, notes = '') => {
     const c = newClient({ name, phone, address, notes });
@@ -70,6 +70,16 @@ export async function loadDemoData() {
   const kVet = contract(vet, 'mowing', 'monthly maintenance', 250, 'monthly', 'biweekly', 90, 52);
   contract(vet, 'plowing', 'parking lot, per push', 120, 'per-push', 'per snowfall', 10, 220, 'signed early for winter');
   contract(bob, 'plowing', 'driveway, seasonal flat rate', 500, 'seasonal', 'per snowfall', 5, 220);
+
+  // repeat rules so the Schedule tab is alive on day one (d(-n) = n days from now)
+  Object.assign(kMarie, { repeat: 'weekly', nextDate: d(0) });
+  Object.assign(kBob, { repeat: 'weekly', nextDate: d(-1) });
+  Object.assign(kHelene, { repeat: 'biweekly', nextDate: d(-2) });
+  Object.assign(kJack, { repeat: 'weekly', nextDate: d(-3) });
+  Object.assign(kChantal, { repeat: 'biweekly', nextDate: d(-4) });
+  Object.assign(kRetire, { repeat: 'weekly', nextDate: d(-1) });
+  jobs.push(newJob({ date: d(0), note: 'Pick up trailer tire at OK Tire' }));
+  jobs.push(newJob({ date: d(-2), clientId: dental.id, note: 'Quote the back lot extension' }));
 
   // ---- three months of invoices ----
   for (const [c, k, amt] of [[marie, kMarie, 180], [bob, kBob, 160], [dental, kDental, 300],
@@ -132,7 +142,7 @@ export async function loadDemoData() {
   equipment.push(newEquipment({ name: 'Toro 30" mower', purchaseDate: d(400), cost: 1899, line: 'mowing', lastServiceDate: d(70), serviceNotes: 'blade + belt' }));
   equipment.push(newEquipment({ name: 'Utility trailer', purchaseDate: d(300), cost: 850, line: 'general', lastServiceDate: d(38), serviceNotes: 'new tires' }));
 
-  const stores = { clients, contracts, invoices, payments, expenses, budgets, visits, quotes, mileage, equipment, crew, shifts };
+  const stores = { clients, contracts, invoices, payments, expenses, budgets, visits, quotes, mileage, equipment, crew, shifts, jobs };
   for (const [store, records] of Object.entries(stores)) {
     if (records.length) await bulkPut(store, records);
   }
