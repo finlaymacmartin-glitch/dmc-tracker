@@ -8,3 +8,4 @@ DMC_Books.xlsx
 # OS noise
 Thumbs.db
 .DS_Store
+__pycache__/
