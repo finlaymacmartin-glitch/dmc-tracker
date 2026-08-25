@@ -370,7 +370,8 @@ input.search::placeholder { color: #6d7a72; }
   border: none; background: none; cursor: pointer; border-radius: 12px;
   display: flex; align-items: center; justify-content: center; color: #fff;
 }
-.topbar-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+/* 1.6 stroke: the cog has fine detail and muddies at 1.9 on a 22px icon */
+.topbar-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .topbar-btn:active { background: rgba(255, 255, 255, 0.15); }
 
 /* ---------- v2: hero numbers (Today) ---------- */
