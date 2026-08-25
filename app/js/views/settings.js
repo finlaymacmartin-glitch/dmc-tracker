@@ -5,6 +5,7 @@ import { clearStore, getMeta, setMeta, STORES } from '../db.js';
 import { exportAndShare, restoreFromFile } from '../export.js';
 import { loadDemoData } from '../demo.js';
 import { fmtDate } from '../models.js';
+import { icon } from '../icons.js';
 
 export async function renderSettings(root, data, { lastExportAt }) {
   const counts = `${data.clients.length} clients · ${data.invoices.length} invoices · ${data.payments.length} payments · ${data.expenses.length} expenses`;
@@ -22,7 +23,7 @@ export async function renderSettings(root, data, { lastExportAt }) {
           toast(`Demo loaded — ${n} sample clients ✔`);
           render();
         }
-      }, '🌱 Load demo data')));
+      }, icon('sprout', 'ico-inline'), ' Load demo data')));
   }
 
   // ---- export ----
@@ -30,17 +31,18 @@ export async function renderSettings(root, data, { lastExportAt }) {
   root.append(el('div', { class: 'card' },
     el('div', { class: 'row-sub', style: 'margin-bottom:6px' }, '1. Tap the button — your share sheet opens'),
     el('div', { class: 'row-sub', style: 'margin-bottom:6px' }, '2. Pick AirDrop, Messages, or Mail → send to Finlay'),
-    el('div', { class: 'row-sub', style: 'margin-bottom:10px' }, '3. Done — this file is also your backup'),
+    el('div', { class: 'row-sub', style: 'margin-bottom:6px' }, '3. Nothing is sent until you pick where it goes'),
+    el('div', { class: 'row-sub', style: 'margin-bottom:10px' }, 'That file IS your backup — “Save to Files” now and then keeps a copy on your phone too'),
     el('div', { class: 'row-sub', style: 'margin-bottom:10px' }, counts),
     lastExportAt ? el('div', { class: 'row-sub', style: 'margin-bottom:10px' }, `Last sent: ${fmtDate(lastExportAt.slice(0, 10))}`) : null,
     el('button', {
       class: 'btn', onclick: async () => {
         const result = await exportAndShare();
-        if (result === 'shared') toast('Sent ✔ (backup saved too)');
+        if (result === 'shared') toast('Sent ✔ — that file is your backup, keep it somewhere safe');
         else if (result === 'downloaded') toast('File downloaded ✔ — send it to Finlay');
         render();
       }
-    }, '📤 Send to Finlay')));
+    }, icon('upload', 'ico-inline'), ' Send to Finlay')));
 
   // ---- business info (used by payment-request / review texts) ----
   const biz = (await getMeta('business')) || { etransfer: '', reviewLink: '' };
@@ -81,7 +83,7 @@ export async function renderSettings(root, data, { lastExportAt }) {
   root.append(el('div', { class: 'card' },
     el('div', { class: 'row-sub', style: 'margin-bottom:10px' },
       'Load a previous export file. Replaces everything currently on this device.'),
-    el('button', { class: 'btn secondary', onclick: () => fileInput.click() }, '📥 Restore from file'),
+    el('button', { class: 'btn secondary', onclick: () => fileInput.click() }, icon('download', 'ico-inline'), ' Restore from file'),
     fileInput));
 
   // ---- storage status ----

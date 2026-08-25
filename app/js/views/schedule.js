@@ -1,10 +1,12 @@
 // Schedule: rolling agenda (default) + month calendar toggle.
-// Occurrences come from contract repeat rules; Done on visit-billed work logs the visit.
+// Occurrences come from contract repeat rules; job rows/actions live in jobrow.js.
 
-import { el, navigate, render, openModal, closeModal, field, textInput, dateInput, select, formValues, toast, confirmAction } from '../app.js';
-import { put, remove } from '../db.js';
-import { newJob, newVisit, touch, today, addDays, fmtDate } from '../models.js';
+import { el, navigate, render, openModal, closeModal, field, textInput, dateInput, select, formValues, toast } from '../app.js';
+import { put } from '../db.js';
+import { newJob, today, addDays } from '../models.js';
 import { agenda, catchUp, unscheduled } from '../schedule.js';
+import { jobRow } from './jobrow.js';
+import { icon } from '../icons.js';
 
 let schedMode = 'agenda'; // 'agenda' | 'month'
 let monthOffset = 0;
@@ -22,7 +24,7 @@ export function renderSchedule(root, data) {
     const clientById = new Map(data.clients.map(c => [c.id, c]));
     const names = missing.slice(0, 3).map(k => clientById.get(k.clientId)?.name).filter(Boolean).join(', ');
     root.append(el('div', { class: 'alert info', onclick: () => navigate('clients') },
-      el('span', { class: 'a-icon' }, '🗓'),
+      el('span', { class: 'a-icon' }, icon('calendarAdd')),
       el('span', {}, `${missing.length} contract${missing.length > 1 ? 's aren’t' : ' isn’t'} on the schedule yet (${names}${missing.length > 3 ? '…' : ''}) — open the contract and set “Repeats”.`)));
   }
 
@@ -106,106 +108,15 @@ function renderMonth(root, data) {
   for (const e of dayEntries) root.append(jobRow(e, data));
 }
 
-// ---------------- shared job row + actions ----------------
-function jobRow(e, data, late = false) {
-  const name = e.client ? e.client.name : (e.job?.note || 'Job');
-  const subBits = [
-    e.contract ? cap(e.contract.service) : (e.kind === 'manual' ? 'one-time' : ''),
-    e.client && e.job?.note ? e.job.note : '',
-    late ? `was ${fmtDate(e.date)}` : '',
-  ].filter(Boolean);
-  const card = el('div', { class: 'card' },
-    el('div', { class: 'row' },
-      el('div', { class: 'row-main' },
-        el('div', { class: 'row-title' }, name),
-        el('div', { class: 'row-sub' }, subBits.join(' · ') || '—')),
-      e.status === 'done'
-        ? el('button', {
-            class: 'btn subtle small', onclick: () => revertDone(e, data)
-          }, '✓ done')
-        : null));
-  if (e.status !== 'done') {
-    card.append(el('div', { class: 'btn-row' },
-      el('button', { class: 'btn small', onclick: () => markDone(e, data) }, '✓ Done'),
-      el('button', { class: 'btn subtle small', onclick: () => moveJob(e, data) }, 'Move'),
-      e.kind === 'manual'
-        ? el('button', {
-            class: 'btn subtle small', onclick: async () => {
-              if (!confirmAction('Delete this one-time job?')) return;
-              await remove('jobs', e.job.id);
-              toast('Job deleted'); render();
-            }
-          }, 'Delete')
-        : el('button', { class: 'btn subtle small', onclick: () => skipJob(e) }, 'Skip')));
-  }
-  return card;
-}
-
-// upsert the override/manual record backing an agenda entry
-async function backingJob(e, changes) {
-  const j = e.job
-    ? { ...e.job, ...changes }
-    : newJob({ date: e.date, clientId: e.client?.id || '', contractId: e.contract?.id || '', origDate: e.origDate, ...changes });
-  await put('jobs', touch(j));
-  return j;
-}
-
-async function markDone(e, data) {
-  const changes = { status: 'done' };
-  const billing = e.contract?.billing;
-  let msg = 'Marked done ✔';
-  if (e.contract && (billing === 'per-visit' || billing === 'per-push')) {
-    const v = newVisit({ contractId: e.contract.id, clientId: e.contract.clientId, date: e.date });
-    await put('visits', v);
-    changes.visitId = v.id;
-    msg = `Done ✔ — ${billing === 'per-push' ? 'push' : 'visit'} logged for billing`;
-  }
-  await backingJob(e, changes);
-  toast(msg);
-  render();
-}
-
-async function revertDone(e, data) {
-  if (!confirmAction('Put this job back to planned?')) return;
-  if (e.job?.visitId) {
-    const v = data.visits.find(x => x.id === e.job.visitId);
-    if (v && !v.invoiceId) await remove('visits', v.id); // un-log unless already billed
-  }
-  await backingJob(e, { status: 'planned', visitId: '' });
-  toast('Back to planned');
-  render();
-}
-
-async function skipJob(e) {
-  await backingJob(e, { status: 'skipped' });
-  toast('Skipped — it won’t come back');
-  render();
-}
-
-function moveJob(e, data) {
-  const dateIn = dateInput('date', e.date);
-  const form = el('form', {},
-    field('New date', dateIn),
-    el('div', { class: 'btn-row' },
-      el('button', { class: 'btn subtle', type: 'button', onclick: closeModal }, 'Cancel'),
-      el('button', { class: 'btn', type: 'submit' }, 'Move job')));
-  form.addEventListener('submit', async ev => {
-    ev.preventDefault();
-    const v = formValues(form);
-    if (!v.date) return;
-    await backingJob(e, { date: v.date });
-    closeModal();
-    toast(`Moved to ${fmtDate(v.date)}`);
-    render();
-  });
-  openModal(`Move — ${e.client?.name || 'job'}`, [form]);
-}
-
+// ---------------- one-time job ----------------
 function jobForm(data) {
+  const members = data.crew.filter(c => c.status !== 'inactive')
+    .sort((a, b) => a.name.localeCompare(b.name));
   const form = el('form', {},
     field('Date', dateInput('date', today())),
     field('Client (optional)', select('clientId', [['', '— no client —'], ...data.clients.map(c => [c.id, c.name])], '')),
     field('What is it?', textInput('note', '', { placeholder: 'e.g. gutter clean, estimate visit' })),
+    members.length ? field('Assign to (optional)', select('crewId', [['', '— me —'], ...members.map(c => [c.id, c.name])], '')) : null,
     el('div', { class: 'btn-row' },
       el('button', { class: 'btn subtle', type: 'button', onclick: closeModal }, 'Cancel'),
       el('button', { class: 'btn', type: 'submit' }, 'Add job')));
@@ -213,12 +124,10 @@ function jobForm(data) {
     ev.preventDefault();
     const v = formValues(form);
     if (!v.clientId && !v.note) { toast('Pick a client or say what the job is'); return; }
-    await put('jobs', newJob({ date: v.date || today(), clientId: v.clientId, note: v.note }));
+    await put('jobs', newJob({ date: v.date || today(), clientId: v.clientId, note: v.note, crewId: v.crewId || '' }));
     closeModal();
     toast('Job added ✔');
     render();
   });
   openModal('One-time job', [form]);
 }
-
-function cap(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }

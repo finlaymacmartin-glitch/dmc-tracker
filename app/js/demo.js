@@ -131,7 +131,16 @@ export async function loadDemoData() {
   shifts.push(newShift({ crewId: kevin.id, date: d(40), hours: 4, rate: 20, amount: 80, line: 'mowing', paid: true, paidDate: d(38) }));
   expense(38, 80.00, 'Wages', 'Kevin (cousin)', 'mowing', '1 shift');
   shifts.push(newShift({ crewId: kevin.id, date: d(6), hours: 3, rate: 20, amount: 60, clientId: retire.id, line: 'mowing' }));
-  shifts.push(newShift({ crewId: kevin.id, date: d(2), flatAmount: 50, amount: 50, line: 'mowing', note: 'helped clear brush' }));
+
+  // ---- delegation: contract default, a one-off override, and a done job → shift pair ----
+  kRetire.defaultCrewId = kevin.id; // Kevin usually does the retirement home
+  jobs.push(newJob({ date: d(0), origDate: d(0), contractId: kMarie.id, clientId: marie.id, crewId: kevin.id })); // just today's visit
+  jobs.push(newJob({ date: d(-1), clientId: helene.id, note: 'Trim hedges', crewId: kevin.id }));
+  const brushShift = newShift({ crewId: kevin.id, date: d(2), flatAmount: 50, amount: 50, clientId: retire.id, line: 'mowing', note: 'helped clear brush' });
+  const brushJob = newJob({ date: d(2), clientId: retire.id, note: 'Clear brush behind lodge', status: 'done', crewId: kevin.id, shiftId: brushShift.id });
+  brushShift.jobId = brushJob.id;
+  shifts.push(brushShift);
+  jobs.push(brushJob);
 
   // ---- quotes, mileage, equipment ----
   quotes.push(newQuote({ prospectName: 'New Neighbour on Oak St', prospectPhone: '506-555-1010', service: 'mowing', price: 50, billing: 'per-visit', frequency: 'weekly', dateIssued: d(5), expiryDate: d(-25), description: 'front + back, weekly' }));

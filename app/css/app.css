@@ -3,15 +3,17 @@
 
 :root {
   /* brand */
-  --green: #1b5e20;
-  --green-deep: #124316;
-  --green-soft: #e3efe4;
-  --green-mist: #f2f7f2;
-  --snow: #1565c0;
-  --snow-soft: #e3eefb;
+  /* brand = blue as of v2 (token names kept to avoid churn) */
+  --green: #1565c0;
+  --green-deep: #0d47a1;
+  --green-soft: #e3eefb;
+  --green-mist: #f2f6fb;
+  /* plowing = icy cyan, distinct from the blue brand so blue means "brand", cyan means "snow" */
+  --snow: #0e7490;
+  --snow-soft: #def3f8;
 
   /* neutrals (tinted toward brand hue, never cream) */
-  --bg: #edf1ed;
+  --bg: #edf0f4;
   --surface: #ffffff;
   --surface-2: #f6f8f6;
   --ink: #182420;
@@ -360,6 +362,131 @@ input.search::placeholder { color: #6d7a72; }
     box-shadow: none; border-radius: 0; padding: 24px; animation: none;
   }
 }
+
+/* ---------- v2: topbar settings ---------- */
+.topbar-right { display: flex; align-items: center; gap: 4px; flex: none; }
+.topbar-btn {
+  width: 44px; height: 44px; margin: -8px -8px -8px 0;
+  border: none; background: none; cursor: pointer; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; color: #fff;
+}
+/* 1.6 stroke: the cog has fine detail and muddies at 1.9 on a 22px icon */
+.topbar-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.topbar-btn:active { background: rgba(255, 255, 255, 0.15); }
+
+/* ---------- v2: hero numbers (Today) ---------- */
+/* One brand-solid panel per screen: the loudest number is the money owed. */
+.hero-card {
+  background: var(--green); color: #fff;
+  border-radius: var(--radius); padding: 16px 16px 14px;
+  box-shadow: var(--shadow-1); margin-bottom: 10px; cursor: pointer;
+}
+.hero-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; opacity: 0.85; }
+.hero-value { font-size: 2.1rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1.15; margin-top: 2px; }
+.hero-card .aging { margin-top: 12px; }
+.hero-card .aging .bucket { border-color: transparent; }
+.stat-hero-row { grid-template-columns: 1fr; margin-bottom: 10px; }
+.stat.hero .value { font-size: 1.8rem; }
+
+.stmt-agreement { margin-bottom: 14px; }
+
+/* ---------- v2: send sheet (Text / Email / … ) ---------- */
+.send-preview {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 12px 14px; font-size: 0.88rem; line-height: 1.5; color: var(--text);
+  margin-bottom: 14px;
+}
+.send-opt {
+  display: flex; align-items: center; gap: 14px; width: 100%; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 13px 15px; margin-bottom: 8px; min-height: 60px; text-align: left;
+  color: var(--green); transition: transform 120ms var(--ease-out), background 120ms var(--ease-out);
+}
+.send-opt:active { transform: scale(0.985); background: var(--green-mist); }
+.send-opt .send-label { display: block; font-size: 1rem; font-weight: 700; color: var(--ink); }
+.send-opt .send-sub { display: block; font-size: 0.8rem; color: var(--muted); margin-top: 1px; }
+
+/* ---------- v2: no bottom-of-screen jump between tabs ----------
+   Every view fills at least one screen, so the scrollbar (desktop) and the
+   URL bar (mobile) never appear/disappear as you move between tabs. */
+.view { min-height: calc(100vh - 118px); }
+@supports (height: 100svh) { .view { min-height: calc(100svh - 118px); } }
+/* always keep the scrollbar gutter, so a short tab can't shift the layout sideways
+   or let the mobile URL bar re-expand under the tab bar */
+html { overflow-y: scroll; }
+@supports (scrollbar-gutter: stable) { html { overflow-y: auto; scrollbar-gutter: stable; } }
+
+/* ---------- v2: per-job tick circle (the obvious "this one's done") ---------- */
+.tick {
+  width: 48px; height: 48px; flex: none; border-radius: 50%; cursor: pointer;
+  border: 2.5px solid var(--border-strong); background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 120ms var(--ease-out), background 120ms var(--ease-out),
+              border-color 120ms var(--ease-out);
+}
+.tick .tick-mark { font-size: 1.5rem; line-height: 1; color: var(--border-strong); font-weight: 700; }
+.tick:active { transform: scale(0.9); }
+.tick.on { background: var(--green); border-color: var(--green); }
+.tick.on .tick-mark { color: #fff; }
+.job-card .row { gap: 14px; }
+.job-card.is-done .row-title, .job-card.is-done .row-sub { color: var(--muted); }
+.job-card.is-done .row-title { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+/* secondary actions step back so the circle is clearly the main move */
+.job-more { margin-top: 8px; padding-left: 62px; }
+.job-more .btn.small { font-size: 0.8rem; padding: 7px 11px; min-height: 36px; }
+.chip.assignee { background: var(--green-soft); color: var(--green-deep); margin-left: 8px; vertical-align: 2px; }
+
+/* ---------- v2: icons ---------- */
+.ico { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.85;
+       stroke-linecap: round; stroke-linejoin: round; flex: none; display: block; }
+.ico-inline { width: 17px; height: 17px; display: inline-block; vertical-align: -3px; margin-right: 1px; }
+/* keep icon+label on one line in the small action buttons; whole buttons wrap instead */
+.btn.small { white-space: nowrap; }
+.btn.small .ico-inline { width: 15px; height: 15px; }
+.alert .a-icon { display: flex; align-items: center; }
+.alert.danger .a-icon { color: var(--danger); }
+.alert.warn .a-icon { color: var(--warn); }
+.alert.info .a-icon { color: var(--green); }
+.row-sub .ico-inline { opacity: 0.8; }
+
+/* ---------- v2: the lede (one sentence, one button) ---------- */
+.lede {
+  font-size: 1.45rem; font-weight: 800; line-height: 1.25; letter-spacing: -0.02em;
+  color: var(--ink); margin: 6px 2px 14px;
+}
+.btn.giant { min-height: 66px; font-size: 1.15rem; font-weight: 750; margin-bottom: 4px; }
+
+/* ---------- v2: personality ---------- */
+/* section labels get a brand tick so sections read as sections, not gray text */
+.section-label { display: flex; align-items: center; gap: 7px; }
+.section-label::before { content: ''; width: 4px; height: 11px; border-radius: 2px; background: var(--green); flex: none; }
+/* grouping: separate SECTIONS far more than the ITEMS inside them */
+.section-label { margin: 30px 2px 9px; }
+.section-label:first-child { margin-top: 4px; }
+.card, .empty { margin-bottom: 7px; }
+.alert { margin-bottom: 6px; }
+.stat-grid { margin-bottom: 2px; }
+/* hero number gets real display weight */
+.hero-value { font-size: 2.4rem; font-weight: 850; letter-spacing: -0.03em; }
+.stat.hero .value { font-size: 1.9rem; font-weight: 800; }
+
+/* cash flow bars (replaces the P&L table) */
+.cash-row { display: grid; grid-template-columns: 3.4em 1fr auto; gap: 10px; align-items: center; padding: 7px 0; }
+.cash-row + .cash-row { border-top: 1px solid var(--border); }
+.cash-month { font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+.cash-bars { display: flex; flex-direction: column; gap: 3px; }
+.cash-bar { height: 7px; border-radius: 4px; min-width: 3px; }
+.cash-bar.in { background: var(--ok); }
+.cash-bar.out { background: #e08a80; }
+.cash-net { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 0.95rem; }
+.cash-net.neg { color: var(--danger); }
+
+/* per-line cards, color-coded edges */
+.line-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.line-card { border-left: 4px solid var(--border-strong); }
+.line-card.mowing { border-left-color: var(--ok); }
+.line-card.plowing { border-left-color: var(--snow); }
+.line-card .value { font-size: 1.3rem; }
 
 /* ---------- reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {

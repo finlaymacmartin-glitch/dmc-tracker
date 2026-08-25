@@ -2,6 +2,8 @@
 
 const DB_NAME = 'dmc-db';
 const DB_VERSION = 5; // v2: +visits; v3: +quotes, mileage, equipment; v4: +crew, shifts; v5: +jobs
+// (app v2.0 adds crewId/shiftId on jobs, defaultCrewId on contracts, jobId on shifts —
+//  plain optional fields on existing records, no schema/version change needed)
 export const STORES = ['clients', 'contracts', 'invoices', 'payments', 'expenses', 'budgets', 'visits', 'quotes', 'mileage', 'equipment', 'crew', 'shifts', 'jobs', 'meta'];
 
 let dbPromise = null;

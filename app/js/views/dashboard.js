@@ -1,12 +1,16 @@
-// Dashboard = alert center + AR snapshot + this-month money picture.
+// Today = what to do first (today's jobs), then what needs chasing, then the money picture.
 
-import { el, navigate, render, toast, openModal, closeModal, field, numberInput } from '../app.js';
-import { put, getMeta, setMeta } from '../db.js';
-import { agingBuckets, invoiceState, money, fmtMonth, monthKey, today, newInvoice, nextInvoiceNumber, addDays, touch } from '../models.js';
+import { el, navigate, render, toast } from '../app.js';
+import { getMeta, setMeta, put } from '../db.js';
+import { agingBuckets, money, monthKey, today, newInvoice, nextInvoiceNumber, addDays, touch, invoiceState, round2 } from '../models.js';
 import { computeAlerts } from '../alerts.js';
 import { billingSuggestions, suggestionKey } from '../billing.js';
-import { todayStats } from '../schedule.js';
-import { monthlyPnl, linePnl, labourStats, opsStats, hiringPower, defaultWageRate } from '../insights.js';
+import { agenda, catchUp } from '../schedule.js';
+import { jobRow, markDone, firstName } from './jobrow.js';
+import { icon } from '../icons.js';
+
+const JOBS_CAP = 5;
+const ALERTS_CAP = 5;
 
 export async function renderDashboard(root, data, { lastExportAt }) {
   const refMonth = monthKey(today());
@@ -19,35 +23,102 @@ export async function renderDashboard(root, data, { lastExportAt }) {
     .filter(e => monthKey(e.date) === refMonth)
     .reduce((s, e) => s + (Number(e.amount) || 0), 0);
   const net = revenueThisMonth - expensesThisMonth;
+  const wagesOwed = round2(data.shifts.filter(s => !s.paid)
+    .reduce((s, x) => s + (Number(x.amount) || 0), 0));
+
+  // ---- the lede: one sentence, one big button. Everything else is below it. ----
+  const jobs = agenda(data, today(), 1);
+  const missed = catchUp(data);
+  const pending = jobs.filter(e => e.status !== 'done');
+  const next = pending[0] || null;
+
+  let lede, action;
+  if (next) {
+    const left = pending.length;
+    const count = left === 1 ? 'One job today.' : `${left} jobs today.`;
+    if (next.client) {
+      // a real client: name them in the sentence and on the button
+      lede = `${count} ${next.client.name} is first.`;
+      action = el('button', { class: 'btn giant', onclick: () => markDone(next, data) },
+        `✓ Done — ${firstName(next.client.name)}`);
+    } else {
+      // a one-time job has a note, not a name — quote it, don't try to first-name it
+      const note = (next.job?.note || 'a job').trim();
+      lede = `${count} First: ${note.length > 38 ? note.slice(0, 36).trimEnd() + '…' : note}.`;
+      action = el('button', { class: 'btn giant', onclick: () => markDone(next, data) }, '✓ Done');
+    }
+  } else if (jobs.length) {
+    lede = jobs.length === 1 ? 'Today’s job is done. Nice.' : `All ${jobs.length} jobs done today. Nice.`;
+    action = el('button', { class: 'btn giant secondary', onclick: () => navigate('schedule') }, 'See the week');
+  } else if (buckets.total > 0) {
+    lede = `Nothing scheduled. ${money(buckets.total)} is owed to you.`;
+    action = el('button', { class: 'btn giant secondary', onclick: () => navigate('invoices') }, 'Chase the money');
+  } else {
+    lede = 'Nothing scheduled today.';
+    action = el('button', { class: 'btn giant secondary', onclick: () => navigate('schedule') }, 'Plan the week');
+  }
+  root.append(el('div', { class: 'lede' }, lede));
+  if (missed.length) {
+    root.append(el('div', { class: 'alert warn', onclick: () => navigate('schedule') },
+      el('span', { class: 'a-icon' }, icon('clock')),
+      el('span', {}, `${missed.length} missed job${missed.length > 1 ? 's' : ''} to catch up on ›`)));
+  }
+  root.append(action);
+
+  // the rest of today, below the fold
+  const rest = next ? jobs.filter(e => e !== next) : [];
+  if (rest.length) {
+    root.append(el('div', { class: 'section-label' }, 'Rest of today'));
+    for (const e of rest.slice(0, JOBS_CAP)) root.append(jobRow(e, data));
+    if (rest.length > JOBS_CAP) {
+      root.append(el('div', { class: 'card tappable', onclick: () => navigate('schedule') },
+        el('div', { class: 'row' },
+          el('div', { class: 'row-sub' }, `+${rest.length - JOBS_CAP} more today`),
+          el('span', { class: 'row-sub' }, '›'))));
+    }
+  }
 
   // ---- alerts (capped: nobody reads 50 alerts; the worst ones surface first) ----
   const alerts = computeAlerts(data, lastExportAt);
   root.append(el('div', { class: 'section-label' }, 'Needs attention'));
   if (alerts.length === 0) {
     root.append(el('div', { class: 'card' },
-      el('div', { class: 'row-sub' }, '✅ All clear — nothing overdue, nothing over budget.')));
+      el('div', { class: 'row-sub' }, 'All clear — nothing overdue, nothing over budget.')));
   } else {
-    for (const a of alerts.slice(0, 8)) {
+    for (const a of alerts.slice(0, ALERTS_CAP)) {
       root.append(el('div', { class: `alert ${a.level}`, onclick: () => navigate(a.view, a.params || {}) },
-        el('span', { class: 'a-icon' }, a.icon), el('span', {}, a.text)));
+        el('span', { class: 'a-icon' }, icon(a.icon)), el('span', {}, a.text)));
     }
-    if (alerts.length > 8) {
+    if (alerts.length > ALERTS_CAP) {
       root.append(el('div', { class: 'alert info', onclick: () => navigate('invoices') },
-        el('span', { class: 'a-icon' }, '➕'),
-        el('span', {}, `…and ${alerts.length - 8} more — the Money tab's Overdue filter has the full list.`)));
+        el('span', { class: 'a-icon' }, icon('plus')),
+        el('span', {}, `…and ${alerts.length - ALERTS_CAP} more — the Money tab's Overdue filter has the full list.`)));
     }
   }
 
-  // ---- today's jobs ----
-  const ts = todayStats(data);
-  root.append(el('div', { class: 'card tappable', onclick: () => navigate('schedule') },
-    el('div', { class: 'row' },
-      el('div', { class: 'row-main' },
-        el('div', { class: 'row-title' }, '📅 Today'),
-        el('div', { class: 'row-sub' }, ts.total === 0
-          ? 'No jobs scheduled — open Schedule to plan the week'
-          : `${ts.total} job${ts.total > 1 ? 's' : ''} · ${ts.done} done`)),
-      el('span', { class: 'row-sub' }, '›'))));
+  // ---- money hero — the loudest numbers on the screen ----
+  root.append(el('div', { class: 'section-label' }, 'Money owed to you'));
+  root.append(el('div', { class: 'hero-card tappable', onclick: () => navigate('invoices') },
+    el('div', { class: 'hero-label' }, 'Owed to you'),
+    el('div', { class: 'hero-value' }, money(buckets.total)),
+    el('div', { class: 'aging hero-aging' },
+      bucket('Not due', buckets.notDue, ''),
+      bucket('1–30', buckets.d1_30, 'b1'),
+      bucket('31–60', buckets.d31_60, 'b2'),
+      bucket('61–90', buckets.d61_90, 'b3'),
+      bucket('90+', buckets.d90plus, 'b4'))));
+
+  // ---- this month ----
+  root.append(el('div', { class: 'section-label' }, 'This month'));
+  root.append(el('div', { class: 'stat-grid stat-hero-row' },
+    el('div', { class: 'stat hero tappable', onclick: () => navigate('invoices', { mode: 'insights' }) },
+      el('div', { class: 'label' }, 'Net this month'),
+      el('div', { class: 'value ' + (net >= 0 ? 'pos' : 'neg') }, money(net)))));
+  root.append(el('div', { class: 'stat-grid' },
+    stat('Collected', money(revenueThisMonth), ''),
+    stat('Spent', money(expensesThisMonth), ''),
+    statLink('Wages owed', money(wagesOwed), wagesOwed > 0 ? 'neg' : '', () => navigate('crew')),
+    stat('Open invoices', String(countOpen(data)), '')));
 
   // ---- ready to bill ----
   const dismissed = (await getMeta('dismissedBilling')) || {};
@@ -74,133 +145,16 @@ export async function renderDashboard(root, data, { lastExportAt }) {
     }
   }
 
-  // ---- AR snapshot ----
-  root.append(el('div', { class: 'section-label' }, 'Money owed to you'));
-  const arCard = el('div', { class: 'card tappable', onclick: () => navigate('invoices') },
-    el('div', { class: 'row' },
-      el('div', { class: 'row-main' }, el('div', { class: 'row-title' }, 'Total outstanding')),
-      el('div', { class: 'row-amount' + (buckets.total > 0 ? '' : ''), style: 'font-size:1.3rem' }, money(buckets.total))),
-    el('div', { class: 'aging' },
-      bucket('Not due', buckets.notDue, ''),
-      bucket('1–30', buckets.d1_30, 'b1'),
-      bucket('31–60', buckets.d31_60, 'b2'),
-      bucket('61–90', buckets.d61_90, 'b3'),
-      bucket('90+', buckets.d90plus, 'b4')));
-  root.append(arCard);
-
-  // ---- this month ----
-  root.append(el('div', { class: 'section-label' }, 'This month'));
-  root.append(el('div', { class: 'stat-grid' },
-    stat('Collected', money(revenueThisMonth), ''),
-    stat('Spent', money(expensesThisMonth), ''),
-    stat('Net', money(net), net >= 0 ? 'pos' : 'neg'),
-    stat('Open invoices', String(countOpen(data)), '')));
-
-  // ---- business analysis ----
+  // ---- insights ----
   root.append(el('div', { class: 'section-label' }, 'Business'));
-  root.append(el('div', { class: 'card tappable', onclick: () => insightsModal(data) },
+  root.append(el('div', { class: 'card tappable', onclick: () => navigate('invoices', { mode: 'insights' }) },
     el('div', { class: 'row' },
       el('div', { class: 'row-main' },
-        el('div', { class: 'row-title' }, '📊 Insights'),
-        el('div', { class: 'row-sub' }, 'Monthly profit, mowing vs plowing, labour cost, revenue per visit')),
-      el('span', { class: 'row-sub' }, '›'))));
-  root.append(el('div', { class: 'card tappable', onclick: () => hiringModal(data) },
-    el('div', { class: 'row' },
-      el('div', { class: 'row-main' },
-        el('div', { class: 'row-title' }, '💪 Hiring power'),
-        el('div', { class: 'row-sub' }, 'What a helper costs, and whether the business can carry one')),
+        el('div', { class: 'row-title' }, icon('chart', 'ico-inline'), ' Insights'),
+        el('div', { class: 'row-sub' }, 'Profit, mowing vs plowing, labour cost, hiring power')),
       el('span', { class: 'row-sub' }, '›'))));
 
   root.append(el('div', { class: 'fab-space' }));
-}
-
-// ---------------- insights ----------------
-function insightsModal(data) {
-  const labour = labourStats(data);
-  const ops = opsStats(data);
-  const pnl = monthlyPnl(data, 6).filter(r => r.revenue || r.expenses);
-  const lines = linePnl(data).filter(r => r.revenue || r.expenses || r.wagesOwed);
-
-  const statGrid = el('div', { class: 'stat-grid', style: 'margin-bottom:16px' },
-    stat('Labour % of revenue', labour.revenue > 0 ? `${Math.round(labour.labourPct * 100)}%` : '—', labour.labourPct > 0.3 ? 'neg' : ''),
-    stat('Wages owed', money(labour.wagesOwed), labour.wagesOwed > 0 ? 'neg' : ''),
-    stat(ops.avgPerVisitBasis === 'billed' ? 'Avg $ / billed visit' : 'Typical visit price',
-      ops.avgPerVisit > 0 ? money(ops.avgPerVisit) : '—', ''),
-    stat('Quote win rate', ops.winRate === null ? '—' : `${Math.round(ops.winRate * 100)}%`, ''));
-
-  const pnlTable = el('table', { class: 'stmt-table' },
-    el('thead', {}, el('tr', {},
-      el('th', {}, 'Month'), el('th', { class: 'num' }, 'In'), el('th', { class: 'num' }, 'Out'), el('th', { class: 'num' }, 'Net'))),
-    el('tbody', {}, pnl.map(r => el('tr', {},
-      el('td', {}, fmtMonth(r.month)),
-      el('td', { class: 'num' }, money(r.revenue)),
-      el('td', { class: 'num' }, money(r.expenses)),
-      el('td', { class: 'num', style: r.net < 0 ? 'color:var(--danger);font-weight:700' : 'font-weight:700' }, money(r.net))))));
-
-  const lineTable = el('table', { class: 'stmt-table' },
-    el('thead', {}, el('tr', {},
-      el('th', {}, 'Line'), el('th', { class: 'num' }, 'Revenue'), el('th', { class: 'num' }, 'Costs'), el('th', { class: 'num' }, 'Net'))),
-    el('tbody', {}, lines.map(r => el('tr', {},
-      el('td', {}, r.line[0].toUpperCase() + r.line.slice(1)),
-      el('td', { class: 'num' }, money(r.revenue)),
-      el('td', { class: 'num' }, money(r.expenses + r.wagesOwed)),
-      el('td', { class: 'num', style: r.net < 0 ? 'color:var(--danger);font-weight:700' : 'font-weight:700' }, money(r.net))))));
-
-  openModal('Business insights', [
-    statGrid,
-    el('div', { class: 'section-label', style: 'margin-top:0' }, 'Monthly cash flow'),
-    pnl.length ? pnlTable : el('div', { class: 'empty' }, 'No activity yet.'),
-    el('div', { class: 'section-label' }, 'Mowing vs plowing (all time, owed wages included)'),
-    lines.length ? lineTable : el('div', { class: 'empty' }, 'No line-tagged activity yet.'),
-    el('div', { class: 'row-sub', style: 'margin-top:10px' },
-      'Cash basis: money in = payments received, money out = expenses (paid wages included).'),
-  ]);
-}
-
-function hiringModal(data) {
-  const rateIn = numberInput('rate', defaultWageRate(data.crew));
-  const hoursIn = numberInput('hours', 10, { step: '1' });
-  const out = el('div', {});
-
-  function recompute() {
-    const hp = hiringPower(data, rateIn.value, hoursIn.value);
-    out.innerHTML = '';
-    if (hp.thin) {
-      out.append(el('div', { class: 'empty' }, 'Not enough history yet — after a full month of payments and expenses this can give a real answer.'));
-      return;
-    }
-    out.append(el('div', { class: 'stat-grid', style: 'margin:14px 0' },
-      stat('Helper cost / month', money(hp.monthlyCost), ''),
-      stat(`Your avg profit / month`, money(hp.avgNet), hp.avgNet < 0 ? 'neg' : 'pos')));
-    const verdictText = hp.avgNet <= 0
-      ? 'Right now the business isn’t clearing a profit, so a helper only makes sense if they directly bring in new work.'
-      : hp.affordable >= 1
-        ? `Your current profit covers ${hp.affordable} helper${hp.affordable > 1 ? 's' : ''} at these hours without any new work.`
-        : 'Current profit doesn’t fully cover a helper at these hours — they’d need to help you take on more work.';
-    out.append(el('div', { class: `alert ${hp.avgNet > 0 && hp.affordable >= 1 ? 'info' : 'warn'}`, style: 'cursor:default' },
-      el('span', { class: 'a-icon' }, hp.avgNet > 0 && hp.affordable >= 1 ? '✅' : '⚠️'),
-      el('span', {}, verdictText)));
-    if (hp.breakEvenVisitsPerWeek !== null) {
-      const basisText = hp.avgPerVisitBasis === 'billed'
-        ? `at your average of ${money(hp.avgPerVisit)} billed per visit`
-        : `at your typical per-visit price of ${money(hp.avgPerVisit)}`;
-      out.append(el('div', { class: 'row-sub', style: 'margin-top:8px' },
-        `Break-even: ${basisText}, a helper pays for themselves if they help complete about ${hp.breakEvenVisitsPerWeek} extra visit${hp.breakEvenVisitsPerWeek > 1 ? 's' : ''} a week.`));
-    }
-    out.append(el('div', { class: 'row-sub', style: 'margin-top:8px' },
-      `Rule of thumb: keep total labour under ~30% of revenue. Profit average uses your last ${hp.monthsUsed} completed month${hp.monthsUsed > 1 ? 's' : ''}.`));
-  }
-  rateIn.addEventListener('input', recompute);
-  hoursIn.addEventListener('input', recompute);
-  recompute();
-
-  openModal('Hiring power', [
-    el('div', { class: 'row-sub', style: 'margin-bottom:12px' }, 'What would hiring a helper do to your numbers? Adjust and see.'),
-    el('div', { class: 'field-pair' },
-      field('Wage ($/hr)', rateIn),
-      field('Hours / week', hoursIn)),
-    out,
-  ]);
 }
 
 async function createDraft(s, data) {
@@ -227,6 +181,11 @@ function bucket(label, value, cls) {
 }
 function stat(label, value, valueCls) {
   return el('div', { class: 'stat' },
+    el('div', { class: 'label' }, label),
+    el('div', { class: `value ${valueCls}` }, value));
+}
+function statLink(label, value, valueCls, onclick) {
+  return el('div', { class: 'stat tappable', onclick },
     el('div', { class: 'label' }, label),
     el('div', { class: `value ${valueCls}` }, value));
 }

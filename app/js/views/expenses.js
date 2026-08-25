@@ -4,8 +4,12 @@
 import { el, render, openModal, closeModal, field, textInput, numberInput, dateInput, select, formValues, toast, confirmAction } from '../app.js';
 import { put, remove } from '../db.js';
 import { newExpense, newBudget, newMileage, newEquipment, touch, budgetActual, money, fmtDate, fmtMonth, monthKey, today, EXPENSE_CATEGORIES, LINES } from '../models.js';
+import { icon } from '../icons.js';
+import { moneySegments } from './invoices.js';
 
 export function renderExpenses(root, data) {
+  root.append(moneySegments('spend'));
+
   // ---- budget vs actual ----
   root.append(el('div', { class: 'section-label' }, 'Budget vs actual'));
   root.append(el('button', { class: 'btn secondary add-btn', onclick: () => budgetForm(null, data) }, '+ Set a budget'));
@@ -37,7 +41,7 @@ export function renderExpenses(root, data) {
   root.append(el('div', { class: 'card' },
     el('div', { class: 'row' },
       el('div', { class: 'row-main' },
-        el('div', { class: 'row-title' }, '🚗 Mileage'),
+        el('div', { class: 'row-title' }, icon('truck', 'ico-inline'), ' Mileage'),
         el('div', { class: 'row-sub' }, `${kmMonth} km this month · ${kmTotal} km all time — every km is a tax deduction`)),
       null),
     el('div', { class: 'btn-row' },
@@ -47,7 +51,7 @@ export function renderExpenses(root, data) {
   root.append(el('div', { class: 'card' },
     el('div', { class: 'row' },
       el('div', { class: 'row-main' },
-        el('div', { class: 'row-title' }, '🔧 Equipment'),
+        el('div', { class: 'row-title' }, icon('wrench', 'ico-inline'), ' Equipment'),
         el('div', { class: 'row-sub' }, data.equipment.length
           ? `${data.equipment.length} item${data.equipment.length > 1 ? 's' : ''} · ${money(equipCost)} invested`
           : 'Track what you own — purchase price and service dates')),

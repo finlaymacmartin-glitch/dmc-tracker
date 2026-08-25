@@ -1,31 +1,46 @@
-// Money tab: Invoices | Quotes.
+// Money tab: Invoices | Quotes | Insights.
 // Invoice status and balances are always derived from payments, never typed in.
 // Quotes: open → accepted (auto-creates client + contract) / declined; expiry derived.
+// Insights render inline (no dead-end modals): P&L, per-line, labour, hiring power.
 
 import { el, navigate, render, openModal, closeModal, field, textInput, numberInput, dateInput, select, formValues, searchBox, toast, confirmAction } from '../app.js';
 import { put, remove } from '../db.js';
 import {
   newInvoice, newPayment, newQuote, newClient, newContract, touch, invoiceState,
-  nextInvoiceNumber, quoteName, quoteStatus, money, fmtDate, addDays, today, round2,
+  nextInvoiceNumber, quoteName, quoteStatus, money, fmtDate, fmtMonth, addDays, today, round2,
   PAYMENT_METHODS, SERVICES, BILLING_TYPES, BILLING_LABELS,
 } from '../models.js';
-import { getBusiness, paymentRequestText, reviewRequestText, shareText } from '../messages.js';
+import { getBusiness, paymentRequestText, reviewRequestText } from '../messages.js';
+import { sendSheet } from './sendsheet.js';
+import { monthlyPnl, linePnl, labourStats, opsStats, hiringPower, defaultWageRate } from '../insights.js';
+import { icon } from '../icons.js';
 
 let filter = 'open';
-let moneyMode = 'invoices'; // 'invoices' | 'quotes'
+let moneyMode = 'invoices'; // 'invoices' | 'quotes' | 'insights'
+
+// The Money tab's segment bar. Shared with the Expenses view ("Spend"), which is a
+// separate view but reads as the 3rd segment of Money — navigate() keeps deep links clean.
+export function moneySegments(active) {
+  const seg = (key, label, go) =>
+    el('button', { class: 'seg' + (active === key ? ' active' : ''), onclick: go }, label);
+  return el('div', { class: 'segment' },
+    seg('invoices', 'Bills', () => { moneyMode = 'invoices'; navigate('invoices'); }),
+    seg('spend', 'Spend', () => navigate('expenses')),
+    seg('quotes', 'Quotes', () => { moneyMode = 'quotes'; navigate('invoices'); }),
+    seg('insights', 'Insights', () => { moneyMode = 'insights'; navigate('invoices'); }));
+}
 let invQ = '';
 let quoteQ = '';
 const LIST_CAP = 200;
 
 export function renderInvoices(root, data, { params }) {
   if (params.invoiceId) return renderInvoiceDetail(root, data, params.invoiceId);
+  if (params.mode) moneyMode = params.mode;
 
-  // ---- Invoices | Quotes toggle ----
-  root.append(el('div', { class: 'segment' },
-    el('button', { class: 'seg' + (moneyMode === 'invoices' ? ' active' : ''), onclick: () => { moneyMode = 'invoices'; render(); } }, 'Invoices'),
-    el('button', { class: 'seg' + (moneyMode === 'quotes' ? ' active' : ''), onclick: () => { moneyMode = 'quotes'; render(); } }, 'Quotes')));
+  root.append(moneySegments(moneyMode));
 
   if (moneyMode === 'quotes') return renderQuotes(root, data);
+  if (moneyMode === 'insights') return renderInsights(root, data);
 
   root.append(el('button', {
     class: 'btn add-btn',
@@ -118,13 +133,106 @@ function renderQuotes(root, data) {
   root.append(el('div', { class: 'fab-space' }));
 }
 
+// ---------------- insights (inline; also the app's first page) ----------------
+export function renderInsights(root, data) {
+  const labour = labourStats(data);
+  const ops = opsStats(data);
+  const pnl = monthlyPnl(data, 6).filter(r => r.revenue || r.expenses);
+  const lines = linePnl(data).filter(r => r.revenue || r.expenses || r.wagesOwed);
+
+  root.append(el('div', { class: 'stat-grid', style: 'margin-bottom:16px' },
+    stat('Labour % of revenue', labour.revenue > 0 ? `${Math.round(labour.labourPct * 100)}%` : '—', labour.labourPct > 0.3 ? 'neg' : ''),
+    stat('Wages owed', money(labour.wagesOwed), labour.wagesOwed > 0 ? 'neg' : ''),
+    stat(ops.avgPerVisitBasis === 'billed' ? 'Avg $ / billed visit' : 'Typical visit price',
+      ops.avgPerVisit > 0 ? money(ops.avgPerVisit) : '—', ''),
+    stat('Quote win rate', ops.winRate === null ? '—' : `${Math.round(ops.winRate * 100)}%`, '')));
+
+  // monthly cash flow as glanceable bars: in (green) vs out (red), bold net — no table
+  root.append(el('div', { class: 'section-label', style: 'margin-top:0' }, 'Monthly cash flow'));
+  if (pnl.length === 0) root.append(el('div', { class: 'empty' }, 'No activity yet.'));
+  else {
+    const max = Math.max(...pnl.map(r => Math.max(r.revenue, r.expenses)), 1);
+    root.append(el('div', { class: 'card cash-card' }, pnl.map(r =>
+      el('div', { class: 'cash-row' },
+        el('div', { class: 'cash-month' }, fmtMonth(r.month).replace(/ \d{4}$/, '')),
+        el('div', { class: 'cash-bars' },
+          el('div', { class: 'cash-bar in', style: `width:${Math.max(2, r.revenue / max * 100)}%` }),
+          el('div', { class: 'cash-bar out', style: `width:${Math.max(2, r.expenses / max * 100)}%` })),
+        el('div', { class: 'cash-net' + (r.net < 0 ? ' neg' : '') }, money(r.net))))));
+  }
+
+  // per-line cards, color-coded (green = mowing, cyan = plowing)
+  root.append(el('div', { class: 'section-label' }, 'Mowing vs plowing (all time, owed wages included)'));
+  if (lines.length === 0) root.append(el('div', { class: 'empty' }, 'No line-tagged activity yet.'));
+  else root.append(el('div', { class: 'line-grid' }, lines.map(r =>
+    el('div', { class: `stat line-card ${r.line}` },
+      el('div', { class: 'label' }, r.line[0].toUpperCase() + r.line.slice(1)),
+      el('div', { class: 'value' + (r.net < 0 ? ' neg' : '') }, money(r.net)),
+      el('div', { class: 'row-sub' }, `${money(r.revenue)} in · ${money(r.expenses + r.wagesOwed)} out`)))));
+  root.append(el('div', { class: 'row-sub', style: 'margin-top:10px' },
+    'Cash basis: money in = payments received, money out = expenses (paid wages included).'));
+
+  // ---- hiring power (live what-if, inline — inputs redraw only the output box) ----
+  root.append(el('div', { class: 'section-label' }, icon('trendUp', 'ico-inline'), ' Hiring power'));
+  root.append(el('div', { class: 'row-sub', style: 'margin-bottom:10px' },
+    'What would hiring a helper do to your numbers? Adjust and see.'));
+  const rateIn = numberInput('rate', defaultWageRate(data.crew));
+  const hoursIn = numberInput('hours', 10, { step: '1' });
+  const out = el('div', {});
+
+  function recompute() {
+    const hp = hiringPower(data, rateIn.value, hoursIn.value);
+    out.innerHTML = '';
+    if (hp.thin) {
+      out.append(el('div', { class: 'empty' }, 'Not enough history yet — after a full month of payments and expenses this can give a real answer.'));
+      return;
+    }
+    out.append(el('div', { class: 'stat-grid', style: 'margin:14px 0' },
+      stat('Helper cost / month', money(hp.monthlyCost), ''),
+      stat('Your avg profit / month', money(hp.avgNet), hp.avgNet < 0 ? 'neg' : 'pos')));
+    const verdictText = hp.avgNet <= 0
+      ? 'Right now the business isn’t clearing a profit, so a helper only makes sense if they directly bring in new work.'
+      : hp.affordable >= 1
+        ? `Your current profit covers ${hp.affordable} helper${hp.affordable > 1 ? 's' : ''} at these hours without any new work.`
+        : 'Current profit doesn’t fully cover a helper at these hours — they’d need to help you take on more work.';
+    out.append(el('div', { class: `alert ${hp.avgNet > 0 && hp.affordable >= 1 ? 'info' : 'warn'}`, style: 'cursor:default' },
+      el('span', { class: 'a-icon' }, icon(hp.avgNet > 0 && hp.affordable >= 1 ? 'check' : 'warning')),
+      el('span', {}, verdictText)));
+    if (hp.breakEvenVisitsPerWeek !== null) {
+      const basisText = hp.avgPerVisitBasis === 'billed'
+        ? `at your average of ${money(hp.avgPerVisit)} billed per visit`
+        : `at your typical per-visit price of ${money(hp.avgPerVisit)}`;
+      out.append(el('div', { class: 'row-sub', style: 'margin-top:8px' },
+        `Break-even: ${basisText}, a helper pays for themselves if they help complete about ${hp.breakEvenVisitsPerWeek} extra visit${hp.breakEvenVisitsPerWeek > 1 ? 's' : ''} a week.`));
+    }
+    out.append(el('div', { class: 'row-sub', style: 'margin-top:8px' },
+      `Rule of thumb: keep total labour under ~30% of revenue. Profit average uses your last ${hp.monthsUsed} completed month${hp.monthsUsed > 1 ? 's' : ''}.`));
+  }
+  rateIn.addEventListener('input', recompute);
+  hoursIn.addEventListener('input', recompute);
+  recompute();
+
+  root.append(el('div', { class: 'card' },
+    el('div', { class: 'field-pair' },
+      field('Wage ($/hr)', rateIn),
+      field('Hours / week', hoursIn)),
+    out));
+  root.append(el('div', { class: 'fab-space' }));
+}
+
+function stat(label, value, valueCls) {
+  return el('div', { class: 'stat' },
+    el('div', { class: 'label' }, label),
+    el('div', { class: `value ${valueCls}` }, value));
+}
+
 function quoteActions(q, data) {
   const st = quoteStatus(q);
   const body = [
     el('div', { class: 'row-sub' }, `${quoteName(q, data.clients)} — ${cap(q.service)}`),
     el('div', { class: 'row-sub' }, `${money(q.price)} ${BILLING_LABELS[q.billing] || q.billing}${q.frequency ? ' · ' + q.frequency : ''}`),
     q.description ? el('div', { class: 'row-sub' }, q.description) : null,
-    q.notes ? el('div', { class: 'row-sub' }, '📝 ' + q.notes) : null,
+    q.notes ? el('div', { class: 'row-sub' }, icon('note', 'ico-inline'), ' ' + q.notes) : null,
     el('div', { class: 'row-sub', style: 'margin-bottom:12px' }, `Sent ${fmtDate(q.dateIssued)}${q.expiryDate ? ' · expires ' + fmtDate(q.expiryDate) : ''}`),
   ];
   if (st === 'open' || st === 'expired') {
@@ -224,7 +332,7 @@ function renderInvoiceDetail(root, data, invoiceId) {
     el('div', { class: 'row-sub' }, client ? client.name : 'Unknown client'),
     contract ? el('div', { class: 'row-sub' }, `Contract: ${contract.service} — ${contract.description || money(contract.price) + ' ' + (BILLING_LABELS[contract.billing] || contract.billing)}`) : null,
     el('div', { class: 'row-sub' }, `Issued ${fmtDate(inv.dateIssued)}${inv.dueDate ? ' · due ' + fmtDate(inv.dueDate) : ''}`),
-    inv.notes ? el('div', { class: 'row-sub' }, '📝 ' + inv.notes) : null,
+    inv.notes ? el('div', { class: 'row-sub' }, icon('note', 'ico-inline'), ' ' + inv.notes) : null,
     el('div', { class: 'row', style: 'margin-top:10px' }, el('div', { class: 'row-sub' }, 'Invoice total'), el('div', { class: 'row-amount' }, money(inv.amount))),
     el('div', { class: 'row' }, el('div', { class: 'row-sub' }, 'Paid'), el('div', { class: 'row-amount' }, money(st.paid))),
     el('div', { class: 'row' }, el('div', { class: 'row-sub' }, 'Balance'), el('div', { class: 'row-amount' + (st.balance > 0 ? ' neg' : '') }, money(st.balance))),
@@ -242,19 +350,17 @@ function renderInvoiceDetail(root, data, invoiceId) {
     el('div', { class: 'btn-row' },
       st.status !== 'draft' && st.balance > 0.004 && client ? el('button', {
         class: 'btn secondary small', onclick: async () => {
-          const result = await shareText(paymentRequestText(client, inv, st.balance, await getBusiness()));
-          if (result === 'shared') toast('Share sheet opened ✔');
-          else if (result === 'copied') toast('Message copied — paste it into a text');
+          const text = paymentRequestText(client, inv, st.balance, await getBusiness());
+          sendSheet('Request payment', client, text, `Invoice ${inv.number} — Delisle Mowing`);
         }
-      }, '💬 Request payment') : null,
+      }, icon('message', 'ico-inline'), ' Request payment') : null,
       st.status === 'overdue' ? el('button', { class: 'btn secondary small', onclick: () => lateFeeForm(inv, st) }, '+ Late fee') : null,
       st.status === 'paid' && client ? el('button', {
         class: 'btn secondary small', onclick: async () => {
-          const result = await shareText(reviewRequestText(client, await getBusiness()));
-          if (result === 'shared') toast('Share sheet opened ✔');
-          else if (result === 'copied') toast('Message copied — paste it into a text');
+          const text = reviewRequestText(client, await getBusiness());
+          sendSheet('Ask for a review', client, text, 'Thanks from Delisle Mowing');
         }
-      }, '⭐ Ask for review') : null)));
+      }, icon('star', 'ico-inline'), ' Ask for review') : null)));
 
   root.append(el('div', { class: 'section-label' }, 'Payments'));
   const pays = data.payments.filter(p => p.invoiceId === inv.id).sort((a, b) => (b.date || '').localeCompare(a.date || ''));

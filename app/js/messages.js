@@ -47,3 +47,21 @@ export async function shareText(text) {
     return 'failed';
   }
 }
+
+// Hand the message straight to Messages / Mail, prefilled. The "?&" before body
+// is the form both iOS and Android accept on sms: links.
+export function smsLink(phone, text) {
+  return `sms:${(phone || '').replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(text)}`;
+}
+export function emailLink(email, subject, text) {
+  return `mailto:${email || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+}
+
+export async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return 'copied';
+  } catch {
+    return 'failed';
+  }
+}

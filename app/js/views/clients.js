@@ -2,27 +2,21 @@
 
 import { el, navigate, render, openModal, closeModal, field, textInput, numberInput, dateInput, select, formValues, searchBox, toast, confirmAction } from '../app.js';
 import { put, remove, getAll } from '../db.js';
-import { newClient, newContract, newVisit, newCrew, newShift, newExpense, touch, clientBalance, invoiceState, shiftAmount, crewOwed, money, fmtDate, today, round2, SERVICES, BILLING_TYPES, BILLING_LABELS, REPEAT_LABELS, LINES } from '../models.js';
+import { newClient, newContract, newVisit, touch, clientBalance, invoiceState, money, fmtDate, today, SERVICES, BILLING_TYPES, BILLING_LABELS, REPEAT_LABELS } from '../models.js';
 import { unbilledVisits } from '../billing.js';
-import { onMyWayText, shareText } from '../messages.js';
+import { onMyWayText } from '../messages.js';
+import { sendSheet } from './sendsheet.js';
+import { icon } from '../icons.js';
 
-let clientsMode = 'clients'; // 'clients' | 'crew'
 let clientQ = '';
-let crewQ = '';
 const LIST_CAP = 200;
 
 export function renderClients(root, data, { params }) {
+  // crew moved to its own tab in v2 — honor old deep links and alert targets
+  if (params.crewId || params.mode === 'crew') return navigate('crew', params);
   if (params.clientId) return renderClientDetail(root, data, params.clientId);
-  if (params.crewId) return renderCrewDetail(root, data, params.crewId);
-  if (params.mode) clientsMode = params.mode;
 
-  root.append(el('div', { class: 'segment' },
-    el('button', { class: 'seg' + (clientsMode === 'clients' ? ' active' : ''), onclick: () => { clientsMode = 'clients'; navigate('clients'); } }, 'Clients'),
-    el('button', { class: 'seg' + (clientsMode === 'crew' ? ' active' : ''), onclick: () => { clientsMode = 'crew'; navigate('clients'); } }, 'Crew')));
-
-  if (clientsMode === 'crew') return renderCrewList(root, data);
-
-  root.append(el('button', { class: 'btn add-btn', onclick: () => clientForm(null) }, '+ Add client'));
+  root.append(el('button', { class: 'btn add-btn', onclick: () => clientForm(null, data) }, '+ Add client'));
 
   const clients = [...data.clients].sort((a, b) => a.name.localeCompare(b.name));
   if (clients.length === 0) {
@@ -69,33 +63,32 @@ function renderClientDetail(root, data, clientId) {
     el('h2', {}, client.name),
     el('div', { class: 'row-sub' }, [client.phone, client.email].filter(Boolean).join(' · ')),
     client.address ? el('div', { class: 'row-sub' }, client.address) : null,
-    client.notes ? el('div', { class: 'row-sub' }, '📝 ' + client.notes) : null,
+    client.notes ? el('div', { class: 'row-sub' }, icon('note', 'ico-inline'), ' ' + client.notes) : null,
     el('div', { class: 'row', style: 'margin-top:10px' },
       el('div', { class: 'row-sub' }, 'Balance owed'),
       el('div', { class: 'row-amount' + (balance > 0 ? ' neg' : '') }, money(balance))),
     el('div', { class: 'btn-row' },
       el('button', {
-        class: 'btn secondary small', onclick: async () => {
-          const result = await shareText(onMyWayText(client));
-          if (result === 'shared') toast('Share sheet opened ✔');
-          else if (result === 'copied') toast('Message copied — paste it into a text');
-        }
-      }, '🚗 On my way'),
-      el('button', { class: 'btn secondary small', onclick: () => statementModal(client, data) }, '🧾 Statement'),
-      el('button', { class: 'btn subtle small', onclick: () => clientForm(client) }, 'Edit'),
+        class: 'btn secondary small',
+        onclick: () => sendSheet('On my way', client, onMyWayText(client), 'On my way'),
+      }, icon('truck', 'ico-inline'), ' On my way'),
+      el('button', { class: 'btn secondary small', onclick: () => statementModal(client, data) }, icon('receipt', 'ico-inline'), ' Statement'),
+      el('button', { class: 'btn subtle small', onclick: () => clientForm(client, data) }, 'Edit'),
       el('button', { class: 'btn subtle small', onclick: () => deleteClient(client, data) }, 'Delete'))));
 
   // ---- contracts ----
   root.append(el('div', { class: 'section-label' }, 'Contracts'));
-  root.append(el('button', { class: 'btn secondary add-btn', onclick: () => contractForm(null, client) }, '+ Add contract'));
+  root.append(el('button', { class: 'btn secondary add-btn', onclick: () => contractForm(null, client, data) }, '+ Add contract'));
   const contracts = data.contracts.filter(k => k.clientId === clientId);
   if (contracts.length === 0) root.append(el('div', { class: 'empty' }, 'No contracts yet.'));
+  const crewById = Object.fromEntries(data.crew.map(c => [c.id, c]));
   for (const k of contracts) {
-    const card = el('div', { class: 'card tappable', onclick: () => contractForm(k, client) },
+    const usual = k.defaultCrewId ? crewById[k.defaultCrewId] : null;
+    const card = el('div', { class: 'card tappable', onclick: () => contractForm(k, client, data) },
       el('div', { class: 'row' },
         el('div', { class: 'row-main' },
           el('div', { class: 'row-title' }, `${cap(k.service)} — ${money(k.price)} ${(BILLING_LABELS[k.billing] || k.billing).toLowerCase()}`),
-          el('div', { class: 'row-sub' }, [k.frequency, k.startDate && `${fmtDate(k.startDate)}${k.endDate ? ' → ' + fmtDate(k.endDate) : ''}`].filter(Boolean).join(' · '))),
+          el('div', { class: 'row-sub' }, [k.frequency, k.startDate && `${fmtDate(k.startDate)}${k.endDate ? ' → ' + fmtDate(k.endDate) : ''}`, usual ? `usually ${usual.name}` : ''].filter(Boolean).join(' · '))),
         el('span', { class: `chip ${k.status}` }, k.status)));
     if ((k.billing === 'per-visit' || k.billing === 'per-push') && k.status === 'active') {
       const word = k.billing === 'per-push' ? 'push' : 'visit';
@@ -133,186 +126,6 @@ function renderClientDetail(root, data, clientId) {
   root.append(el('div', { class: 'fab-space' }));
 }
 
-// ---------- crew ----------
-function renderCrewList(root, data) {
-  root.append(el('button', { class: 'btn add-btn', onclick: () => crewForm(null) }, '+ Add crew member'));
-  const members = [...data.crew].sort((a, b) => a.name.localeCompare(b.name));
-  if (members.length === 0) {
-    root.append(el('div', { class: 'empty' }, 'No crew yet. Add whoever helps you out — log their shifts, and the app tracks what you owe them.'));
-    return;
-  }
-  const listBox = el('div');
-  const draw = () => {
-    listBox.innerHTML = '';
-    const q = crewQ.trim().toLowerCase();
-    const matched = members.filter(c => !q || `${c.name} ${c.phone} ${c.notes}`.toLowerCase().includes(q));
-    for (const c of matched.slice(0, LIST_CAP)) {
-      const owed = crewOwed(c.id, data.shifts);
-      listBox.append(el('div', { class: 'card tappable', onclick: () => navigate('clients', { crewId: c.id }) },
-        el('div', { class: 'row' },
-          el('div', { class: 'row-main' },
-            el('div', { class: 'row-title' }, c.name),
-            el('div', { class: 'row-sub' }, [c.defaultRate > 0 ? `${money(c.defaultRate)}/hr` : '', c.status === 'inactive' ? 'inactive' : ''].filter(Boolean).join(' · ') || 'No rate set')),
-          el('div', {},
-            el('div', { class: 'row-amount' + (owed > 0 ? ' neg' : '') }, owed > 0 ? money(owed) : '—'),
-            owed > 0 ? el('div', { class: 'row-sub', style: 'text-align:right' }, 'owed') : null))));
-    }
-    if (matched.length === 0) listBox.append(el('div', { class: 'empty' }, 'No crew match that search.'));
-  };
-  if (members.length > 5) root.append(searchBox('Search crew…', crewQ, v => { crewQ = v; draw(); }));
-  root.append(listBox);
-  draw();
-  root.append(el('div', { class: 'fab-space' }));
-}
-
-function renderCrewDetail(root, data, crewId) {
-  const member = data.crew.find(c => c.id === crewId);
-  if (!member) { navigate('clients', { mode: 'crew' }); return; }
-  const shifts = data.shifts.filter(s => s.crewId === crewId)
-    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-  const owed = crewOwed(crewId, data.shifts);
-
-  root.append(el('button', { class: 'back-link', onclick: () => navigate('clients', { mode: 'crew' }) }, '‹ Crew'));
-
-  root.append(el('div', { class: 'card detail-head' },
-    el('h2', {}, member.name),
-    el('div', { class: 'row-sub' }, [member.phone, member.defaultRate > 0 ? `${money(member.defaultRate)}/hr default` : ''].filter(Boolean).join(' · ')),
-    member.notes ? el('div', { class: 'row-sub' }, '📝 ' + member.notes) : null,
-    el('div', { class: 'row', style: 'margin-top:10px' },
-      el('div', { class: 'row-sub' }, 'You owe'),
-      el('div', { class: 'row-amount' + (owed > 0 ? ' neg' : '') }, money(owed))),
-    el('div', { class: 'btn-row' },
-      el('button', { class: 'btn small', onclick: () => shiftForm(member, data) }, '+ Log shift'),
-      owed > 0 ? el('button', { class: 'btn secondary small', onclick: () => payOutModal(member, data) }, '💵 Pay out') : null,
-      el('button', { class: 'btn subtle small', onclick: () => crewForm(member) }, 'Edit'),
-      el('button', { class: 'btn subtle small', onclick: () => deleteCrew(member, data) }, 'Delete'))));
-
-  root.append(el('div', { class: 'section-label' }, 'Shifts'));
-  if (shifts.length === 0) root.append(el('div', { class: 'empty' }, 'No shifts logged yet.'));
-  const clientById = Object.fromEntries(data.clients.map(c => [c.id, c]));
-  for (const s of shifts) {
-    root.append(el('div', { class: 'card' },
-      el('div', { class: 'row' },
-        el('div', { class: 'row-main' },
-          el('div', { class: 'row-title' }, `${money(s.amount)}${Number(s.hours) > 0 ? ` · ${s.hours}h @ ${money(s.rate)}` : ' · flat'}`),
-          el('div', { class: 'row-sub' }, [fmtDate(s.date), clientById[s.clientId]?.name, s.line !== 'general' ? s.line : '', s.note].filter(Boolean).join(' · '))),
-        s.paid
-          ? el('span', { class: 'chip paid' }, 'paid')
-          : el('div', { style: 'display:flex;align-items:center;gap:8px' },
-              el('span', { class: 'chip partial' }, 'owed'),
-              el('button', {
-                class: 'btn subtle small', onclick: async () => {
-                  if (!confirmAction('Delete this shift?')) return;
-                  await remove('shifts', s.id);
-                  toast('Shift deleted'); render();
-                }
-              }, '✕')))));
-  }
-  root.append(el('div', { class: 'fab-space' }));
-}
-
-function crewForm(existing) {
-  const c = existing || newCrew();
-  const form = el('form', {},
-    field('Name *', textInput('name', c.name, { autocomplete: 'off' })),
-    el('div', { class: 'field-pair' },
-      field('Phone', textInput('phone', c.phone, { type: 'tel' })),
-      field('Default rate ($/hr)', numberInput('defaultRate', c.defaultRate || ''))),
-    field('Notes', textInput('notes', c.notes)),
-    existing ? field('Status', select('status', ['active', 'inactive'], c.status)) : null,
-    el('div', { class: 'btn-row' },
-      el('button', { class: 'btn subtle', type: 'button', onclick: closeModal }, 'Cancel'),
-      el('button', { class: 'btn', type: 'submit' }, existing ? 'Save' : 'Add crew member')));
-  form.addEventListener('submit', async e => {
-    e.preventDefault();
-    const v = formValues(form);
-    if (!v.name) return;
-    const saved = touch({ ...c, ...v, defaultRate: Number(v.defaultRate) || 0 });
-    await put('crew', saved);
-    closeModal();
-    toast(existing ? 'Crew member updated' : 'Crew member added ✔');
-    if (existing) render(); else navigate('clients', { crewId: saved.id });
-  });
-  openModal(existing ? 'Edit crew member' : 'New crew member', [form]);
-}
-
-function shiftForm(member, data) {
-  const s = newShift({ crewId: member.id, rate: member.defaultRate || 0 });
-  const form = el('form', {},
-    el('div', { class: 'field-pair' },
-      field('Date', dateInput('date', s.date)),
-      field('Worked on (optional)', select('clientId', [['', '—'], ...data.clients.map(c => [c.id, c.name])], ''))),
-    el('div', { class: 'field-pair' },
-      field('Hours', numberInput('hours', '', { step: '0.5' })),
-      field('Rate ($/hr)', numberInput('rate', s.rate || ''))),
-    field('OR flat amount (CAD) — overrides hours', numberInput('flatAmount', '')),
-    field('Business line', select('line', LINES.map(l => [l, l === 'general' ? 'General / both' : l[0].toUpperCase() + l.slice(1)]), 'general')),
-    field('Note', textInput('note', '')),
-    el('div', { class: 'btn-row' },
-      el('button', { class: 'btn subtle', type: 'button', onclick: closeModal }, 'Cancel'),
-      el('button', { class: 'btn', type: 'submit' }, 'Log shift')));
-  form.addEventListener('submit', async e => {
-    e.preventDefault();
-    const v = formValues(form);
-    const amount = shiftAmount(v.hours, v.rate, v.flatAmount);
-    if (amount <= 0) { toast('Enter hours + rate, or a flat amount'); return; }
-    await put('shifts', touch({
-      ...s, ...v,
-      hours: Number(v.hours) || 0, rate: Number(v.rate) || 0,
-      flatAmount: Number(v.flatAmount) || 0, amount,
-    }));
-    closeModal();
-    toast(`Shift logged — ${money(amount)} owed to ${member.name}`);
-    render();
-  });
-  openModal(`Log shift — ${member.name}`, [form]);
-}
-
-function payOutModal(member, data) {
-  const unpaid = data.shifts.filter(s => s.crewId === member.id && !s.paid);
-  const total = round2(unpaid.reduce((sum, s) => sum + (Number(s.amount) || 0), 0));
-  // wage expense inherits the line most of the unpaid shifts were worked on
-  const lineCounts = {};
-  for (const s of unpaid) lineCounts[s.line || 'general'] = (lineCounts[s.line || 'general'] || 0) + 1;
-  const topLine = Object.entries(lineCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'general';
-
-  const form = el('form', {},
-    el('div', { class: 'row-sub', style: 'margin-bottom:12px' },
-      `Marks ${unpaid.length} shift${unpaid.length > 1 ? 's' : ''} paid and records a ${money(total)} Wages expense so it shows in your books automatically.`),
-    field('Paid on', dateInput('date', today())),
-    field('Note', textInput('note', '', { placeholder: 'e.g. e-transfer' })),
-    el('div', { class: 'btn-row' },
-      el('button', { class: 'btn subtle', type: 'button', onclick: closeModal }, 'Cancel'),
-      el('button', { class: 'btn', type: 'submit' }, `Pay out ${money(total)}`)));
-  form.addEventListener('submit', async e => {
-    e.preventDefault();
-    const v = formValues(form);
-    const payDate = v.date || today();
-    for (const s of unpaid) {
-      s.paid = true;
-      s.paidDate = payDate;
-      await put('shifts', touch(s));
-    }
-    await put('expenses', newExpense({
-      date: payDate, amount: total, category: 'Wages', vendor: member.name, line: topLine,
-      note: `${unpaid.length} shift${unpaid.length > 1 ? 's' : ''}${v.note ? ' · ' + v.note : ''}`,
-    }));
-    closeModal();
-    toast(`Paid ${member.name} ${money(total)} — logged as Wages`);
-    render();
-  });
-  openModal(`Pay out — ${member.name}`, [form]);
-}
-
-async function deleteCrew(member, data) {
-  const n = data.shifts.filter(s => s.crewId === member.id).length;
-  if (!confirmAction(`Delete ${member.name}?${n ? ` Their ${n} shift record(s) are deleted too.` : ''} Paid wage expenses stay in your books.`)) return;
-  for (const s of data.shifts.filter(s => s.crewId === member.id)) await remove('shifts', s.id);
-  await remove('crew', member.id);
-  toast('Crew member deleted');
-  navigate('clients', { mode: 'crew' });
-}
-
 // ---------- statement ----------
 function statementModal(client, data) {
   const events = [];
@@ -344,8 +157,17 @@ function statementModal(client, data) {
         el('div', { class: 'row-title' }, client.name),
         client.address ? el('div', { class: 'row-sub' }, client.address) : null,
         client.phone ? el('div', { class: 'row-sub' }, client.phone) : null)),
+    // what they're signed up for — so a new client's statement isn't a blank page
+    (() => {
+      const active = data.contracts.filter(k => k.clientId === client.id && k.status === 'active');
+      if (!active.length) return null;
+      return el('div', { class: 'stmt-agreement' },
+        el('div', { class: 'section-label', style: 'margin-top:0' }, 'Agreement'),
+        active.map(k => el('div', { class: 'row-sub' },
+          `${cap(k.service)} — ${money(k.price)} ${(BILLING_LABELS[k.billing] || k.billing).toLowerCase()}${k.frequency ? ' · ' + k.frequency : ''}`)));
+    })(),
     events.length === 0
-      ? el('div', { class: 'empty' }, 'No activity yet.')
+      ? el('div', { class: 'empty' }, 'No invoices or payments yet — nothing to bill on this statement.')
       : el('table', { class: 'stmt-table' },
           el('thead', {}, el('tr', {},
             el('th', {}, 'Date'), el('th', {}, 'Description'),
@@ -359,7 +181,7 @@ function statementModal(client, data) {
     statement,
     el('div', { class: 'btn-row no-print' },
       el('button', { class: 'btn subtle', onclick: closeModal }, 'Close'),
-      el('button', { class: 'btn', onclick: () => window.print() }, '🖨 Print / Save PDF')),
+      el('button', { class: 'btn', onclick: () => window.print() }, icon('printer', 'ico-inline'), ' Print / Save PDF')),
   ]);
 }
 
@@ -398,8 +220,15 @@ function visitsModal(contract, client, data) {
 }
 
 // ---------- forms ----------
-function clientForm(existing) {
+function crewOptions(data) {
+  const members = data.crew.filter(c => c.status !== 'inactive')
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return members.length ? [['', '— me —'], ...members.map(c => [c.id, c.name])] : null;
+}
+
+function clientForm(existing, data) {
   const c = existing || newClient();
+  const crewOpts = crewOptions(data);
   const clientFields = [
     field('Name *', textInput('name', c.name, { required: 'true', autocomplete: 'off' })),
     field('Phone', textInput('phone', c.phone, { type: 'tel' })),
@@ -424,6 +253,7 @@ function clientForm(existing) {
     el('div', { class: 'field-pair' },
       field('Start date', dateInput('startDate', '')),
       field('End date', dateInput('endDate', ''))),
+    crewOpts ? field('Usually done by', select('defaultCrewId', crewOpts, '')) : null,
   ];
   const form = el('form', {}, ...clientFields, ...contractFields,
     el('div', { class: 'btn-row' },
@@ -443,6 +273,7 @@ function clientForm(existing) {
         clientId: saved.id, service: v.service, price: Number(v.price),
         billing: v.billing, frequency: v.frequency, startDate: v.startDate, endDate: v.endDate,
         repeat: v.repeat || 'none', nextDate: v.nextDate || '',
+        defaultCrewId: v.defaultCrewId || '',
       }));
       msg = 'Client + contract added ✔';
     }
@@ -471,8 +302,9 @@ async function deleteClient(client, data) {
   navigate('clients');
 }
 
-function contractForm(existing, client) {
+function contractForm(existing, client, data) {
   const k = existing || newContract({ clientId: client.id });
+  const crewOpts = crewOptions(data);
   const form = el('form', {},
     field('Service', select('service', SERVICES.map(s => [s, cap(s)]), k.service)),
     field('Description', textInput('description', k.description, { placeholder: 'e.g. weekly front + back lawn' })),
@@ -486,6 +318,7 @@ function contractForm(existing, client) {
     el('div', { class: 'field-pair' },
       field('Start date', dateInput('startDate', k.startDate)),
       field('End date', dateInput('endDate', k.endDate))),
+    crewOpts ? field('Usually done by', select('defaultCrewId', crewOpts, k.defaultCrewId || '')) : null,
     field('Status', select('status', ['active', 'ended'], k.status)),
     field('Notes', textInput('notes', k.notes)),
     el('div', { class: 'btn-row' },
