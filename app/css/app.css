@@ -405,6 +405,13 @@ input.search::placeholder { color: #6d7a72; }
 .alert.info .a-icon { color: var(--green); }
 .row-sub .ico-inline { opacity: 0.8; }
 
+/* ---------- v2: the lede (one sentence, one button) ---------- */
+.lede {
+  font-size: 1.45rem; font-weight: 800; line-height: 1.25; letter-spacing: -0.02em;
+  color: var(--ink); margin: 6px 2px 14px;
+}
+.btn.giant { min-height: 66px; font-size: 1.15rem; font-weight: 750; margin-bottom: 4px; }
+
 /* ---------- v2: personality ---------- */
 /* section labels get a brand tick so sections read as sections, not gray text */
 .section-label { display: flex; align-items: center; gap: 7px; }

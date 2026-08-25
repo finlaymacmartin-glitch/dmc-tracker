@@ -29,13 +29,15 @@ with sync_playwright() as pw:
     page.reload()
     page.wait_for_selector(".tabbar .tab", timeout=15000)
     for view, marker in [("dashboard", "Today"), ("schedule", "Schedule"), ("clients", "Clients"),
-                         ("crew", "Crew"), ("invoices", "Money"), ("expenses", "Expenses")]:
+                         ("crew", "Crew"), ("invoices", "Money")]:
         page.click(f'.tab[data-view="{view}"]')
         expect(page.locator("#view-title")).to_contain_text(marker)
+    page.locator(".segment .seg", has_text="Spend").click()   # Expenses = Money > Spend
+    expect(page.locator("#view-title")).to_contain_text("Expenses")
     page.click("#settings-btn")
     expect(page.locator("#view-title")).to_contain_text("Settings")
     assert not errors, f"page errors offline: {errors}"
-    print("pass: all 6 tabs + settings render fully OFFLINE, zero page errors")
+    print("pass: all 5 tabs + Spend + settings render fully OFFLINE, zero page errors")
     browser.close()
 
 print("OFFLINE TEST PASS")

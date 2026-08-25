@@ -5,8 +5,11 @@ import { el, render, openModal, closeModal, field, textInput, numberInput, dateI
 import { put, remove } from '../db.js';
 import { newExpense, newBudget, newMileage, newEquipment, touch, budgetActual, money, fmtDate, fmtMonth, monthKey, today, EXPENSE_CATEGORIES, LINES } from '../models.js';
 import { icon } from '../icons.js';
+import { moneySegments } from './invoices.js';
 
 export function renderExpenses(root, data) {
+  root.append(moneySegments('spend'));
+
   // ---- budget vs actual ----
   root.append(el('div', { class: 'section-label' }, 'Budget vs actual'));
   root.append(el('button', { class: 'btn secondary add-btn', onclick: () => budgetForm(null, data) }, '+ Set a budget'));

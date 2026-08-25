@@ -16,6 +16,18 @@ import { icon } from '../icons.js';
 
 let filter = 'open';
 let moneyMode = 'invoices'; // 'invoices' | 'quotes' | 'insights'
+
+// The Money tab's segment bar. Shared with the Expenses view ("Spend"), which is a
+// separate view but reads as the 3rd segment of Money — navigate() keeps deep links clean.
+export function moneySegments(active) {
+  const seg = (key, label, go) =>
+    el('button', { class: 'seg' + (active === key ? ' active' : ''), onclick: go }, label);
+  return el('div', { class: 'segment' },
+    seg('invoices', 'Bills', () => { moneyMode = 'invoices'; navigate('invoices'); }),
+    seg('spend', 'Spend', () => navigate('expenses')),
+    seg('quotes', 'Quotes', () => { moneyMode = 'quotes'; navigate('invoices'); }),
+    seg('insights', 'Insights', () => { moneyMode = 'insights'; navigate('invoices'); }));
+}
 let invQ = '';
 let quoteQ = '';
 const LIST_CAP = 200;
@@ -24,12 +36,7 @@ export function renderInvoices(root, data, { params }) {
   if (params.invoiceId) return renderInvoiceDetail(root, data, params.invoiceId);
   if (params.mode) moneyMode = params.mode;
 
-  // ---- Invoices | Quotes | Insights toggle ----
-  // navigate() (not render()) so a params.mode deep link doesn't stick to the next tap
-  root.append(el('div', { class: 'segment' },
-    el('button', { class: 'seg' + (moneyMode === 'invoices' ? ' active' : ''), onclick: () => { moneyMode = 'invoices'; navigate('invoices'); } }, 'Invoices'),
-    el('button', { class: 'seg' + (moneyMode === 'quotes' ? ' active' : ''), onclick: () => { moneyMode = 'quotes'; navigate('invoices'); } }, 'Quotes'),
-    el('button', { class: 'seg' + (moneyMode === 'insights' ? ' active' : ''), onclick: () => { moneyMode = 'insights'; navigate('invoices'); } }, 'Insights')));
+  root.append(moneySegments(moneyMode));
 
   if (moneyMode === 'quotes') return renderQuotes(root, data);
   if (moneyMode === 'insights') return renderInsights(root, data);

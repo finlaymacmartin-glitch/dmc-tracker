@@ -62,7 +62,7 @@ pip install openpyxl
 
 ## 3. The tabs (v2.0)
 
-`Today · Schedule · Clients · Crew · Money · Expenses`, plus a **gear in the top-right
+`Today · Schedule · Clients · Crew · Money`, plus a **gear in the top-right
 corner for Settings** (it's the one screen that's never a driveway action).
 
 ## 4. Everyday use (him)
@@ -106,7 +106,7 @@ corner for Settings** (it's the one screen that's never a driveway action).
   they start. One tap creates a **draft** invoice; he reviews and hits
   **✓ Approve & send** in the Money tab (drafts never count in AR until approved).
   Suggestions can be dismissed with ✕ if something shouldn't be billed.
-* **Expenses tab** — log every expense with a category and a *mowing / plowing / general*
+* **Money → Spend** (expenses) — log every expense with a category and a *mowing / plowing / general*
   tag. Set monthly or seasonal budget limits and watch actual-vs-budget bars. Mileage and
   equipment logs live here too.
 * **Settings (gear, top-right) → Send to Finlay** (every week or two, and before any phone

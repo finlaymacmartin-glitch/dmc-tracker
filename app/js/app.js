@@ -9,7 +9,7 @@ import { renderInvoices } from './views/invoices.js';
 import { renderExpenses } from './views/expenses.js';
 import { renderSettings } from './views/settings.js';
 
-export const APP_VERSION = '2.0.0';
+export const APP_VERSION = '2.1.0';
 const BRAND = 'Delisle Mowing';
 
 const VIEWS = {
@@ -35,8 +35,11 @@ export async function render() {
   const fullTitle = `${BRAND} — ${view.title}`;
   document.getElementById('view-title').textContent = fullTitle;
   document.title = fullTitle;
+  // Expenses lives inside the Money tab as its "Spend" segment, so light Money there
+  const tabFor = { expenses: 'invoices' };
+  const activeTab = tabFor[state.view] || state.view;
   document.querySelectorAll('.tab').forEach(t =>
-    t.classList.toggle('active', t.dataset.view === state.view));
+    t.classList.toggle('active', t.dataset.view === activeTab));
   const root = document.getElementById('view');
   root.innerHTML = '';
   const data = await loadAll();

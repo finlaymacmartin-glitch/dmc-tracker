@@ -6,7 +6,7 @@ import { agingBuckets, money, monthKey, today, newInvoice, nextInvoiceNumber, ad
 import { computeAlerts } from '../alerts.js';
 import { billingSuggestions, suggestionKey } from '../billing.js';
 import { agenda, catchUp } from '../schedule.js';
-import { jobRow } from './jobrow.js';
+import { jobRow, markDone, firstName } from './jobrow.js';
 import { icon } from '../icons.js';
 
 const JOBS_CAP = 5;
@@ -26,26 +26,54 @@ export async function renderDashboard(root, data, { lastExportAt }) {
   const wagesOwed = round2(data.shifts.filter(s => !s.paid)
     .reduce((s, x) => s + (Number(x.amount) || 0), 0));
 
-  // ---- today's jobs — the reason he opens the app ----
+  // ---- the lede: one sentence, one big button. Everything else is below it. ----
   const jobs = agenda(data, today(), 1);
   const missed = catchUp(data);
-  root.append(el('div', { class: 'section-label' }, 'Today'));
+  const pending = jobs.filter(e => e.status !== 'done');
+  const next = pending[0] || null;
+
+  let lede, action;
+  if (next) {
+    const left = pending.length;
+    const count = left === 1 ? 'One job today.' : `${left} jobs today.`;
+    if (next.client) {
+      // a real client: name them in the sentence and on the button
+      lede = `${count} ${next.client.name} is first.`;
+      action = el('button', { class: 'btn giant', onclick: () => markDone(next, data) },
+        `✓ Done — ${firstName(next.client.name)}`);
+    } else {
+      // a one-time job has a note, not a name — quote it, don't try to first-name it
+      const note = (next.job?.note || 'a job').trim();
+      lede = `${count} First: ${note.length > 38 ? note.slice(0, 36).trimEnd() + '…' : note}.`;
+      action = el('button', { class: 'btn giant', onclick: () => markDone(next, data) }, '✓ Done');
+    }
+  } else if (jobs.length) {
+    lede = jobs.length === 1 ? 'Today’s job is done. Nice.' : `All ${jobs.length} jobs done today. Nice.`;
+    action = el('button', { class: 'btn giant secondary', onclick: () => navigate('schedule') }, 'See the week');
+  } else if (buckets.total > 0) {
+    lede = `Nothing scheduled. ${money(buckets.total)} is owed to you.`;
+    action = el('button', { class: 'btn giant secondary', onclick: () => navigate('invoices') }, 'Chase the money');
+  } else {
+    lede = 'Nothing scheduled today.';
+    action = el('button', { class: 'btn giant secondary', onclick: () => navigate('schedule') }, 'Plan the week');
+  }
+  root.append(el('div', { class: 'lede' }, lede));
   if (missed.length) {
     root.append(el('div', { class: 'alert warn', onclick: () => navigate('schedule') },
       el('span', { class: 'a-icon' }, icon('clock')),
       el('span', {}, `${missed.length} missed job${missed.length > 1 ? 's' : ''} to catch up on ›`)));
   }
-  if (jobs.length === 0) {
-    root.append(el('div', { class: 'card tappable', onclick: () => navigate('schedule') },
-      el('div', { class: 'row' },
-        el('div', { class: 'row-sub' }, 'Nothing scheduled today — open Schedule to plan the week'),
-        el('span', { class: 'row-sub' }, '›'))));
-  } else {
-    for (const e of jobs.slice(0, JOBS_CAP)) root.append(jobRow(e, data));
-    if (jobs.length > JOBS_CAP) {
+  root.append(action);
+
+  // the rest of today, below the fold
+  const rest = next ? jobs.filter(e => e !== next) : [];
+  if (rest.length) {
+    root.append(el('div', { class: 'section-label' }, 'Rest of today'));
+    for (const e of rest.slice(0, JOBS_CAP)) root.append(jobRow(e, data));
+    if (rest.length > JOBS_CAP) {
       root.append(el('div', { class: 'card tappable', onclick: () => navigate('schedule') },
         el('div', { class: 'row' },
-          el('div', { class: 'row-sub' }, `+${jobs.length - JOBS_CAP} more today`),
+          el('div', { class: 'row-sub' }, `+${rest.length - JOBS_CAP} more today`),
           el('span', { class: 'row-sub' }, '›'))));
     }
   }

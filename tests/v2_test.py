@@ -29,10 +29,10 @@ def run(pw):
 
     # ---- 1. shell: tabs + gear ----
     tabs = page.locator(".tabbar .tab")
-    expect(tabs).to_have_count(6)
-    labels = [tabs.nth(i).inner_text().strip().lower() for i in range(6)]
-    assert labels == ["today", "schedule", "clients", "crew", "money", "expenses"], labels
-    ok("tab bar is Today/Schedule/Clients/Crew/Money/Expenses")
+    expect(tabs).to_have_count(5)
+    labels = [tabs.nth(i).inner_text().strip().lower() for i in range(5)]
+    assert labels == ["today", "schedule", "clients", "crew", "money"], labels
+    ok("tab bar is Today/Schedule/Clients/Crew/Money")
     expect(page.locator("#settings-btn")).to_be_visible()
     page.click("#settings-btn")
     expect(page.locator("#view-title")).to_contain_text("Settings")
@@ -125,8 +125,8 @@ def run(pw):
     # ---- 8. Money: Insights segment inline ----
     page.click('.tab[data-view="invoices"]')
     segs = page.locator(".segment .seg")
-    expect(segs).to_have_count(3)
-    segs.nth(2).click()
+    expect(segs).to_have_count(4)
+    segs.nth(3).click()
     expect(page.locator("#view")).to_contain_text(re.compile("monthly cash flow", re.I))
     expect(page.locator("#view")).to_contain_text(re.compile("hiring power", re.I))
     ok("Insights render inline under Money")
