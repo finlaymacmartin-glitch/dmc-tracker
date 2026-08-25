@@ -361,6 +361,34 @@ input.search::placeholder { color: #6d7a72; }
   }
 }
 
+/* ---------- v2: topbar settings ---------- */
+.topbar-right { display: flex; align-items: center; gap: 4px; flex: none; }
+.topbar-btn {
+  width: 44px; height: 44px; margin: -8px -8px -8px 0;
+  border: none; background: none; cursor: pointer; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; color: #fff;
+}
+.topbar-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.topbar-btn:active { background: rgba(255, 255, 255, 0.15); }
+
+/* ---------- v2: hero numbers (Today) ---------- */
+/* One brand-solid panel per screen: the loudest number is the money owed. */
+.hero-card {
+  background: var(--green); color: #fff;
+  border-radius: var(--radius); padding: 16px 16px 14px;
+  box-shadow: var(--shadow-1); margin-bottom: 10px; cursor: pointer;
+}
+.hero-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; opacity: 0.85; }
+.hero-value { font-size: 2.1rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1.15; margin-top: 2px; }
+.hero-card .aging { margin-top: 12px; }
+.hero-card .aging .bucket { border-color: transparent; }
+.stat-hero-row { grid-template-columns: 1fr; margin-bottom: 10px; }
+.stat.hero .value { font-size: 1.8rem; }
+
+/* ---------- v2: big Done + assignee chip ---------- */
+.job-done-btn { min-height: 52px; font-size: 1rem; }
+.chip.assignee { background: var(--green-soft); color: var(--green-deep); margin-left: 8px; vertical-align: 2px; }
+
 /* ---------- reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }

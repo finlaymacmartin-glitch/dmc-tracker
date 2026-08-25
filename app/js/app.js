@@ -4,17 +4,19 @@ import { loadAll, getMeta, setMeta } from './db.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderSchedule } from './views/schedule.js';
 import { renderClients } from './views/clients.js';
+import { renderCrew } from './views/crew.js';
 import { renderInvoices } from './views/invoices.js';
 import { renderExpenses } from './views/expenses.js';
 import { renderSettings } from './views/settings.js';
 
-export const APP_VERSION = '1.9.0';
+export const APP_VERSION = '2.0.0';
 const BRAND = 'Delisle Mowing';
 
 const VIEWS = {
-  dashboard: { title: 'Dashboard', render: renderDashboard },
+  dashboard: { title: 'Today', render: renderDashboard },
   schedule: { title: 'Schedule', render: renderSchedule },
   clients: { title: 'Clients', render: renderClients },
+  crew: { title: 'Crew', render: renderCrew },
   invoices: { title: 'Money', render: renderInvoices },
   expenses: { title: 'Expenses', render: renderExpenses },
   settings: { title: 'Settings', render: renderSettings },
@@ -126,6 +128,7 @@ export function confirmAction(message) {
 // ---------- boot ----------
 document.querySelectorAll('.tab').forEach(tab =>
   tab.addEventListener('click', () => navigate(tab.dataset.view)));
+document.getElementById('settings-btn').addEventListener('click', () => navigate('settings'));
 document.getElementById('app-version').textContent = 'v' + APP_VERSION;
 
 // Keep data safe from browser eviction where supported.

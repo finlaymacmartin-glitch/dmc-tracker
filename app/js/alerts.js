@@ -61,7 +61,7 @@ export function computeAlerts(data, lastExportAt) {
     if (owed > 0) {
       const n = (data.shifts || []).filter(s => s.crewId === c.id && !s.paid).length;
       alerts.push({
-        level: 'warn', icon: '💵', view: 'clients', params: { mode: 'crew' },
+        level: 'warn', icon: '💵', view: 'crew', params: { crewId: c.id },
         text: `You owe ${c.name} ${money(owed)} (${n} shift${n > 1 ? 's' : ''}) — open Crew to pay out`,
       });
     }

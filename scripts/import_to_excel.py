@@ -43,7 +43,7 @@ RAW_SHEETS = [
         ("ID", "id"), ("Client ID", "clientId"), ("Service", "service"),
         ("Description", "description"), ("Price", "price"), ("Billing", "billing"),
         ("Frequency", "frequency"), ("Repeat", "repeat"), ("Next Date", "nextDate"),
-        ("Start Date", "startDate"), ("End Date", "endDate"),
+        ("Start Date", "startDate"), ("End Date", "endDate"), ("Default Crew ID", "defaultCrewId"),
         ("Status", "status"), ("Notes", "notes"), ("Updated At", "updatedAt"),
     ]),
     ("Invoices", "invoices", [
@@ -62,7 +62,9 @@ RAW_SHEETS = [
     ]),
     ("Jobs", "jobs", [
         ("ID", "id"), ("Date", "date"), ("Client ID", "clientId"), ("Contract ID", "contractId"),
-        ("Note", "note"), ("Status", "status"), ("Orig Date", "origDate"), ("Updated At", "updatedAt"),
+        ("Note", "note"), ("Status", "status"), ("Orig Date", "origDate"),
+        ("Crew ID", "crewId"), ("Shift ID", "shiftId"), ("Visit ID", "visitId"),
+        ("Updated At", "updatedAt"),
     ]),
     ("Expenses", "expenses", [
         ("ID", "id"), ("Date", "date"), ("Amount", "amount"), ("Category", "category"),
@@ -94,8 +96,8 @@ RAW_SHEETS = [
     ("Shifts", "shifts", [
         ("ID", "id"), ("Crew ID", "crewId"), ("Date", "date"), ("Hours", "hours"),
         ("Rate", "rate"), ("Flat", "flatAmount"), ("Amount", "amount"), ("Client ID", "clientId"),
-        ("Line", "line"), ("Paid", "paid"), ("Paid Date", "paidDate"), ("Note", "note"),
-        ("Updated At", "updatedAt"),
+        ("Job ID", "jobId"), ("Line", "line"), ("Paid", "paid"), ("Paid Date", "paidDate"),
+        ("Note", "note"), ("Updated At", "updatedAt"),
     ]),
 ]
 CURRENCY_HEADERS = {"Amount", "Price", "Limit", "Cost", "Default Rate", "Rate", "Flat"}

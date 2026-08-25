@@ -25,7 +25,7 @@ export const REPEAT_LABELS = { none: 'Does not repeat', weekly: 'Every week', bi
 export const REPEAT_DAYS = { weekly: 7, biweekly: 14, every4weeks: 28 };
 
 export function newContract(d = {}) {
-  return { id: uuid(), clientId: '', service: 'mowing', description: '', price: 0, billing: 'per-visit', frequency: '', startDate: '', endDate: '', repeat: 'none', nextDate: '', status: 'active', notes: '', createdAt: now(), updatedAt: now(), ...d };
+  return { id: uuid(), clientId: '', service: 'mowing', description: '', price: 0, billing: 'per-visit', frequency: '', startDate: '', endDate: '', repeat: 'none', nextDate: '', defaultCrewId: '', status: 'active', notes: '', createdAt: now(), updatedAt: now(), ...d };
 }
 export function newInvoice(d = {}) {
   return { id: uuid(), number: '', clientId: '', contractId: '', dateIssued: today(), dueDate: '', amount: 0, status: 'sent', notes: '', createdAt: now(), updatedAt: now(), ...d };
@@ -53,13 +53,17 @@ export function newEquipment(d = {}) {
 }
 
 export function newJob(d = {}) {
-  return { id: uuid(), date: today(), clientId: '', contractId: '', note: '', status: 'planned', origDate: '', createdAt: now(), updatedAt: now(), ...d };
+  return { id: uuid(), date: today(), clientId: '', contractId: '', note: '', status: 'planned', origDate: '', crewId: '', shiftId: '', createdAt: now(), updatedAt: now(), ...d };
 }
 export function newCrew(d = {}) {
   return { id: uuid(), name: '', phone: '', defaultRate: 0, notes: '', status: 'active', createdAt: now(), updatedAt: now(), ...d };
 }
 export function newShift(d = {}) {
-  return { id: uuid(), crewId: '', date: today(), hours: 0, rate: 0, flatAmount: 0, amount: 0, clientId: '', line: 'general', note: '', paid: false, paidDate: '', createdAt: now(), updatedAt: now(), ...d };
+  return { id: uuid(), crewId: '', date: today(), hours: 0, rate: 0, flatAmount: 0, amount: 0, clientId: '', jobId: '', line: 'general', note: '', paid: false, paidDate: '', createdAt: now(), updatedAt: now(), ...d };
+}
+// a contract's service mapped to a business line for expenses/shifts
+export function lineForService(service) {
+  return service === 'mowing' || service === 'plowing' ? service : 'general';
 }
 // a shift's pay: flat amount wins when set, otherwise hours x rate
 export function shiftAmount(hours, rate, flatAmount) {

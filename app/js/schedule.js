@@ -8,6 +8,15 @@ export function overrideKey(contractId, origDate) {
   return `${contractId}|${origDate}`;
 }
 
+// who actually works an occurrence: job override wins, contract default fills in,
+// '' means the owner himself. The 'me' sentinel is an explicit owner override
+// of a contract default — it resolves to '' here and never leaves this function.
+export function effectiveCrewId(job, contract) {
+  const j = job?.crewId || '';
+  if (j === 'me') return '';
+  return j || contract?.defaultCrewId || '';
+}
+
 // dates a contract generates within [from, to], inclusive
 export function occurrencesFor(contract, from, to) {
   if (contract.status !== 'active' || contract.repeat === 'none') return [];
@@ -42,14 +51,14 @@ export function agenda(data, from = today(), days = 14) {
   for (const k of data.contracts) {
     for (const date of occurrencesFor(k, from, to)) {
       if (overrides.has(overrideKey(k.id, date))) continue; // its job record speaks instead
-      entries.push({ date, origDate: date, kind: 'recurring', contract: k, client: clientById.get(k.clientId) || null, job: null, status: 'planned' });
+      entries.push({ date, origDate: date, kind: 'recurring', contract: k, client: clientById.get(k.clientId) || null, job: null, status: 'planned', crewId: effectiveCrewId(null, k) });
     }
   }
   for (const j of data.jobs) {
     if (j.status === 'skipped') continue; // skipped occurrences disappear from the agenda
     if (j.date < from || j.date > to) continue;
     const k = contractById.get(j.contractId) || null;
-    entries.push({ date: j.date, origDate: j.origDate || j.date, kind: j.contractId ? 'recurring' : 'manual', contract: k, client: clientById.get(j.clientId) || null, job: j, status: j.status });
+    entries.push({ date: j.date, origDate: j.origDate || j.date, kind: j.contractId ? 'recurring' : 'manual', contract: k, client: clientById.get(j.clientId) || null, job: j, status: j.status, crewId: effectiveCrewId(j, k) });
   }
   entries.sort((a, b) => a.date.localeCompare(b.date) ||
     ((a.client && a.client.name) || '').localeCompare((b.client && b.client.name) || ''));
@@ -65,7 +74,18 @@ export function catchUp(data, back = 7) {
 
 export function todayStats(data) {
   const entries = agenda(data, today(), 1);
-  return { total: entries.length, done: entries.filter(e => e.status === 'done').length };
+  return {
+    total: entries.length,
+    done: entries.filter(e => e.status === 'done').length,
+    delegated: entries.filter(e => e.crewId).length,
+  };
+}
+
+// a crew member's upcoming plate: today + the next `days`-1, plus missed work
+export function jobsForCrew(data, crewId, days = 7) {
+  const upcoming = agenda(data, today(), days).filter(e => e.crewId === crewId && e.status !== 'done');
+  const missed = catchUp(data).filter(e => e.crewId === crewId);
+  return { missed, upcoming };
 }
 
 // active repeat-capable contracts not yet on the schedule (mowing-type work)

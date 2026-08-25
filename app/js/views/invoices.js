@@ -1,31 +1,37 @@
-// Money tab: Invoices | Quotes.
+// Money tab: Invoices | Quotes | Insights.
 // Invoice status and balances are always derived from payments, never typed in.
 // Quotes: open → accepted (auto-creates client + contract) / declined; expiry derived.
+// Insights render inline (no dead-end modals): P&L, per-line, labour, hiring power.
 
 import { el, navigate, render, openModal, closeModal, field, textInput, numberInput, dateInput, select, formValues, searchBox, toast, confirmAction } from '../app.js';
 import { put, remove } from '../db.js';
 import {
   newInvoice, newPayment, newQuote, newClient, newContract, touch, invoiceState,
-  nextInvoiceNumber, quoteName, quoteStatus, money, fmtDate, addDays, today, round2,
+  nextInvoiceNumber, quoteName, quoteStatus, money, fmtDate, fmtMonth, addDays, today, round2,
   PAYMENT_METHODS, SERVICES, BILLING_TYPES, BILLING_LABELS,
 } from '../models.js';
 import { getBusiness, paymentRequestText, reviewRequestText, shareText } from '../messages.js';
+import { monthlyPnl, linePnl, labourStats, opsStats, hiringPower, defaultWageRate } from '../insights.js';
 
 let filter = 'open';
-let moneyMode = 'invoices'; // 'invoices' | 'quotes'
+let moneyMode = 'invoices'; // 'invoices' | 'quotes' | 'insights'
 let invQ = '';
 let quoteQ = '';
 const LIST_CAP = 200;
 
 export function renderInvoices(root, data, { params }) {
   if (params.invoiceId) return renderInvoiceDetail(root, data, params.invoiceId);
+  if (params.mode) moneyMode = params.mode;
 
-  // ---- Invoices | Quotes toggle ----
+  // ---- Invoices | Quotes | Insights toggle ----
+  // navigate() (not render()) so a params.mode deep link doesn't stick to the next tap
   root.append(el('div', { class: 'segment' },
-    el('button', { class: 'seg' + (moneyMode === 'invoices' ? ' active' : ''), onclick: () => { moneyMode = 'invoices'; render(); } }, 'Invoices'),
-    el('button', { class: 'seg' + (moneyMode === 'quotes' ? ' active' : ''), onclick: () => { moneyMode = 'quotes'; render(); } }, 'Quotes')));
+    el('button', { class: 'seg' + (moneyMode === 'invoices' ? ' active' : ''), onclick: () => { moneyMode = 'invoices'; navigate('invoices'); } }, 'Invoices'),
+    el('button', { class: 'seg' + (moneyMode === 'quotes' ? ' active' : ''), onclick: () => { moneyMode = 'quotes'; navigate('invoices'); } }, 'Quotes'),
+    el('button', { class: 'seg' + (moneyMode === 'insights' ? ' active' : ''), onclick: () => { moneyMode = 'insights'; navigate('invoices'); } }, 'Insights')));
 
   if (moneyMode === 'quotes') return renderQuotes(root, data);
+  if (moneyMode === 'insights') return renderInsights(root, data);
 
   root.append(el('button', {
     class: 'btn add-btn',
@@ -116,6 +122,98 @@ function renderQuotes(root, data) {
   root.append(listBox);
   draw();
   root.append(el('div', { class: 'fab-space' }));
+}
+
+// ---------------- insights (inline) ----------------
+function renderInsights(root, data) {
+  const labour = labourStats(data);
+  const ops = opsStats(data);
+  const pnl = monthlyPnl(data, 6).filter(r => r.revenue || r.expenses);
+  const lines = linePnl(data).filter(r => r.revenue || r.expenses || r.wagesOwed);
+
+  root.append(el('div', { class: 'stat-grid', style: 'margin-bottom:16px' },
+    stat('Labour % of revenue', labour.revenue > 0 ? `${Math.round(labour.labourPct * 100)}%` : '—', labour.labourPct > 0.3 ? 'neg' : ''),
+    stat('Wages owed', money(labour.wagesOwed), labour.wagesOwed > 0 ? 'neg' : ''),
+    stat(ops.avgPerVisitBasis === 'billed' ? 'Avg $ / billed visit' : 'Typical visit price',
+      ops.avgPerVisit > 0 ? money(ops.avgPerVisit) : '—', ''),
+    stat('Quote win rate', ops.winRate === null ? '—' : `${Math.round(ops.winRate * 100)}%`, '')));
+
+  root.append(el('div', { class: 'section-label', style: 'margin-top:0' }, 'Monthly cash flow'));
+  if (pnl.length === 0) root.append(el('div', { class: 'empty' }, 'No activity yet.'));
+  else root.append(el('table', { class: 'stmt-table' },
+    el('thead', {}, el('tr', {},
+      el('th', {}, 'Month'), el('th', { class: 'num' }, 'In'), el('th', { class: 'num' }, 'Out'), el('th', { class: 'num' }, 'Net'))),
+    el('tbody', {}, pnl.map(r => el('tr', {},
+      el('td', {}, fmtMonth(r.month)),
+      el('td', { class: 'num' }, money(r.revenue)),
+      el('td', { class: 'num' }, money(r.expenses)),
+      el('td', { class: 'num', style: r.net < 0 ? 'color:var(--danger);font-weight:700' : 'font-weight:700' }, money(r.net)))))));
+
+  root.append(el('div', { class: 'section-label' }, 'Mowing vs plowing (all time, owed wages included)'));
+  if (lines.length === 0) root.append(el('div', { class: 'empty' }, 'No line-tagged activity yet.'));
+  else root.append(el('table', { class: 'stmt-table' },
+    el('thead', {}, el('tr', {},
+      el('th', {}, 'Line'), el('th', { class: 'num' }, 'Revenue'), el('th', { class: 'num' }, 'Costs'), el('th', { class: 'num' }, 'Net'))),
+    el('tbody', {}, lines.map(r => el('tr', {},
+      el('td', {}, r.line[0].toUpperCase() + r.line.slice(1)),
+      el('td', { class: 'num' }, money(r.revenue)),
+      el('td', { class: 'num' }, money(r.expenses + r.wagesOwed)),
+      el('td', { class: 'num', style: r.net < 0 ? 'color:var(--danger);font-weight:700' : 'font-weight:700' }, money(r.net)))))));
+  root.append(el('div', { class: 'row-sub', style: 'margin-top:10px' },
+    'Cash basis: money in = payments received, money out = expenses (paid wages included).'));
+
+  // ---- hiring power (live what-if, inline — inputs redraw only the output box) ----
+  root.append(el('div', { class: 'section-label' }, '💪 Hiring power'));
+  root.append(el('div', { class: 'row-sub', style: 'margin-bottom:10px' },
+    'What would hiring a helper do to your numbers? Adjust and see.'));
+  const rateIn = numberInput('rate', defaultWageRate(data.crew));
+  const hoursIn = numberInput('hours', 10, { step: '1' });
+  const out = el('div', {});
+
+  function recompute() {
+    const hp = hiringPower(data, rateIn.value, hoursIn.value);
+    out.innerHTML = '';
+    if (hp.thin) {
+      out.append(el('div', { class: 'empty' }, 'Not enough history yet — after a full month of payments and expenses this can give a real answer.'));
+      return;
+    }
+    out.append(el('div', { class: 'stat-grid', style: 'margin:14px 0' },
+      stat('Helper cost / month', money(hp.monthlyCost), ''),
+      stat('Your avg profit / month', money(hp.avgNet), hp.avgNet < 0 ? 'neg' : 'pos')));
+    const verdictText = hp.avgNet <= 0
+      ? 'Right now the business isn’t clearing a profit, so a helper only makes sense if they directly bring in new work.'
+      : hp.affordable >= 1
+        ? `Your current profit covers ${hp.affordable} helper${hp.affordable > 1 ? 's' : ''} at these hours without any new work.`
+        : 'Current profit doesn’t fully cover a helper at these hours — they’d need to help you take on more work.';
+    out.append(el('div', { class: `alert ${hp.avgNet > 0 && hp.affordable >= 1 ? 'info' : 'warn'}`, style: 'cursor:default' },
+      el('span', { class: 'a-icon' }, hp.avgNet > 0 && hp.affordable >= 1 ? '✅' : '⚠️'),
+      el('span', {}, verdictText)));
+    if (hp.breakEvenVisitsPerWeek !== null) {
+      const basisText = hp.avgPerVisitBasis === 'billed'
+        ? `at your average of ${money(hp.avgPerVisit)} billed per visit`
+        : `at your typical per-visit price of ${money(hp.avgPerVisit)}`;
+      out.append(el('div', { class: 'row-sub', style: 'margin-top:8px' },
+        `Break-even: ${basisText}, a helper pays for themselves if they help complete about ${hp.breakEvenVisitsPerWeek} extra visit${hp.breakEvenVisitsPerWeek > 1 ? 's' : ''} a week.`));
+    }
+    out.append(el('div', { class: 'row-sub', style: 'margin-top:8px' },
+      `Rule of thumb: keep total labour under ~30% of revenue. Profit average uses your last ${hp.monthsUsed} completed month${hp.monthsUsed > 1 ? 's' : ''}.`));
+  }
+  rateIn.addEventListener('input', recompute);
+  hoursIn.addEventListener('input', recompute);
+  recompute();
+
+  root.append(el('div', { class: 'card' },
+    el('div', { class: 'field-pair' },
+      field('Wage ($/hr)', rateIn),
+      field('Hours / week', hoursIn)),
+    out));
+  root.append(el('div', { class: 'fab-space' }));
+}
+
+function stat(label, value, valueCls) {
+  return el('div', { class: 'stat' },
+    el('div', { class: 'label' }, label),
+    el('div', { class: `value ${valueCls}` }, value));
 }
 
 function quoteActions(q, data) {
