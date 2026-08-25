@@ -145,7 +145,8 @@ with sync_playwright() as pw:
     page.click('.tab[data-view="crew"]')
     expect(page.locator("#view")).to_contain_text("Kevin")
     expect(page.locator("#view")).to_contain_text("$60.00")  # the unpaid v1.9 shift still owed
-    page.click('.tab[data-view="expenses"]')
+    page.click('.tab[data-view="invoices"]')
+    page.locator(".segment .seg", has_text="Spend").click()   # Expenses = Money > Spend
     expect(page.locator("#view")).to_contain_text("Irving")
     page.click('.tab[data-view="schedule"]')
     page.click('.tab[data-view="dashboard"]')
