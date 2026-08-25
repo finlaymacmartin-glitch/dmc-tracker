@@ -3,15 +3,16 @@
 
 :root {
   /* brand */
-  --green: #1b5e20;
-  --green-deep: #124316;
-  --green-soft: #e3efe4;
-  --green-mist: #f2f7f2;
+  /* brand = blue as of v2 (token names kept to avoid churn) */
+  --green: #1565c0;
+  --green-deep: #0d47a1;
+  --green-soft: #e3eefb;
+  --green-mist: #f2f6fb;
   --snow: #1565c0;
   --snow-soft: #e3eefb;
 
   /* neutrals (tinted toward brand hue, never cream) */
-  --bg: #edf1ed;
+  --bg: #edf0f4;
   --surface: #ffffff;
   --surface-2: #f6f8f6;
   --ink: #182420;

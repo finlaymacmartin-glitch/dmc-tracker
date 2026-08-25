@@ -124,8 +124,8 @@ function renderQuotes(root, data) {
   root.append(el('div', { class: 'fab-space' }));
 }
 
-// ---------------- insights (inline) ----------------
-function renderInsights(root, data) {
+// ---------------- insights (inline; also the app's first page) ----------------
+export function renderInsights(root, data) {
   const labour = labourStats(data);
   const ops = opsStats(data);
   const pnl = monthlyPnl(data, 6).filter(r => r.revenue || r.expenses);
