@@ -4,7 +4,7 @@
 import { el, navigate, render, openModal, closeModal, field, textInput, dateInput, select, formValues, toast } from '../app.js';
 import { put } from '../db.js';
 import { newJob, today, addDays } from '../models.js';
-import { agenda, catchUp, unscheduled } from '../schedule.js';
+import { agenda, catchUp, contractIssues } from '../schedule.js';
 import { jobRow } from './jobrow.js';
 import { icon } from '../icons.js';
 
@@ -19,13 +19,30 @@ export function renderSchedule(root, data) {
 
   root.append(el('button', { class: 'btn add-btn', onclick: () => jobForm(data) }, '+ Add one-time job'));
 
-  const missing = unscheduled(data);
-  if (missing.length) {
-    const clientById = new Map(data.clients.map(c => [c.id, c]));
-    const names = missing.slice(0, 3).map(k => clientById.get(k.clientId)?.name).filter(Boolean).join(', ');
-    root.append(el('div', { class: 'alert info', onclick: () => navigate('clients') },
+  const issues = contractIssues(data);
+  const clientById = new Map(data.clients.map(c => [c.id, c]));
+  const who = list => list.slice(0, 3).map(k => clientById.get(k.clientId)?.name).filter(Boolean).join(', ')
+    + (list.length > 3 ? '…' : '');
+  // jump straight to the client whose contract needs the fix
+  const fix = list => navigate('clients', list[0]?.clientId ? { clientId: list[0].clientId } : {});
+
+  if (issues.repeatCantBill.length) {
+    const n = issues.repeatCantBill.length;
+    root.append(el('div', { class: 'alert warn', onclick: () => fix(issues.repeatCantBill) },
+      el('span', { class: 'a-icon' }, icon('warning')),
+      el('span', {}, `${n} repeating contract${n > 1 ? 's bill' : ' bills'} as one-time (${who(issues.repeatCantBill)}), so ${n > 1 ? 'they' : 'it'} won’t suggest an invoice again — open the contract and set Billing to “Per visit”.`)));
+  }
+  if (issues.dateNoRepeat.length) {
+    const n = issues.dateNoRepeat.length;
+    root.append(el('div', { class: 'alert warn', onclick: () => fix(issues.dateNoRepeat) },
       el('span', { class: 'a-icon' }, icon('calendarAdd')),
-      el('span', {}, `${missing.length} contract${missing.length > 1 ? 's aren’t' : ' isn’t'} on the schedule yet (${names}${missing.length > 3 ? '…' : ''}) — open the contract and set “Repeats”.`)));
+      el('span', {}, `${n} contract${n > 1 ? 's have' : ' has'} a next-visit date but no “Repeats” rule (${who(issues.dateNoRepeat)}), so nothing is scheduled — open the contract and pick how often it repeats.`)));
+  }
+  if (issues.unscheduled.length) {
+    const n = issues.unscheduled.length;
+    root.append(el('div', { class: 'alert info', onclick: () => fix(issues.unscheduled) },
+      el('span', { class: 'a-icon' }, icon('calendarAdd')),
+      el('span', {}, `${n} contract${n > 1 ? 's aren’t' : ' isn’t'} on the schedule yet (${who(issues.unscheduled)}) — open the contract and set “Repeats”.`)));
   }
 
   if (schedMode === 'month') renderMonth(root, data);
