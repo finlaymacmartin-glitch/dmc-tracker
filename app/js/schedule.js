@@ -95,16 +95,19 @@ export function unscheduled(data) {
     (k.billing === 'per-visit' || k.billing === 'monthly' || k.billing === 'level'));
 }
 
-// Settings combinations that quietly can't work. Both of these are easy to walk into:
-// a next-visit date does nothing without a Repeats rule, and a repeating contract that
-// bills one-time invoices once and is then suppressed forever (see billing.js).
+// A next-visit date does nothing without a Repeats rule — no occurrences generate, so the
+// work never reaches the schedule. That matters most on prepaid seasons, where the money is
+// already collected and only the schedule is holding him to the work.
+//
+// Deliberately NOT flagged: a repeating contract that bills one-time. That reads like a bug
+// (it bills once and is then suppressed by billing.js) but it is exactly right for a season
+// charged up front — one invoice, then a repeat rule so the visits still get scheduled.
 export function contractIssues(data) {
-  const dateNoRepeat = [], repeatCantBill = [];
+  const dateNoRepeat = [];
   for (const k of data.contracts) {
     if (k.status !== 'active') continue;
     const repeats = !!k.repeat && k.repeat !== 'none';
     if (!repeats && k.nextDate) dateNoRepeat.push(k);
-    if (repeats && (k.billing === 'one-time' || k.billing === 'seasonal')) repeatCantBill.push(k);
   }
-  return { dateNoRepeat, repeatCantBill, unscheduled: unscheduled(data) };
+  return { dateNoRepeat, unscheduled: unscheduled(data) };
 }

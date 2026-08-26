@@ -26,12 +26,6 @@ export function renderSchedule(root, data) {
   // jump straight to the client whose contract needs the fix
   const fix = list => navigate('clients', list[0]?.clientId ? { clientId: list[0].clientId } : {});
 
-  if (issues.repeatCantBill.length) {
-    const n = issues.repeatCantBill.length;
-    root.append(el('div', { class: 'alert warn', onclick: () => fix(issues.repeatCantBill) },
-      el('span', { class: 'a-icon' }, icon('warning')),
-      el('span', {}, `${n} repeating contract${n > 1 ? 's bill' : ' bills'} as one-time (${who(issues.repeatCantBill)}), so ${n > 1 ? 'they' : 'it'} won’t suggest an invoice again — open the contract and set Billing to “Per visit”.`)));
-  }
   if (issues.dateNoRepeat.length) {
     const n = issues.dateNoRepeat.length;
     root.append(el('div', { class: 'alert warn', onclick: () => fix(issues.dateNoRepeat) },
